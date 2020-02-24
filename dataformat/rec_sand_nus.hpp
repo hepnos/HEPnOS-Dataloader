@@ -6,6 +6,7 @@
 #ifndef __REC_SAND_NUS_HPP_
 #define __REC_SAND_NUS_HPP_
 
+#include <tuple>
 #include <string>
 #include <vector>
 #include <cstdint>
@@ -77,6 +78,11 @@ struct rec_sand_nus {
         hsize_t dims[2];
         herr_t err;
         int ndims;
+
+        std::vector<unsigned> col_run;
+        std::vector<unsigned> col_subrun;
+        std::vector<unsigned> col_evt;
+        _read_indices(file, col_run, col_subrun, col_evt);
 
         std::vector<float> col_angewsumtx; /* angewsumtx column */
         dataset = H5Dopen(file, "/rec.sand.nus/angewsumtx", H5P_DEFAULT);
@@ -206,37 +212,6 @@ struct rec_sand_nus {
         H5Dclose(dataset);
         
 
-        /* column for run indices */
-        std::vector<unsigned> col_run;
-        dataset = H5Dopen(file, "/rec.sand.nus/run", H5P_DEFAULT);
-        dataspace = H5Dget_space(dataset);
-        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
-        col_run.resize(dims[0]);
-        err = H5Dread(dataset, H5T_NATIVE_UINT, H5S_ALL, H5S_ALL, H5P_DEFAULT,
-                static_cast<void*>(col_run.data()));
-        H5Sclose(dataspace);
-        H5Dclose(dataset);
-        /* column for subrun indices */
-        std::vector<unsigned> col_subrun;
-        dataset = H5Dopen(file, "/rec.sand.nus/subrun", H5P_DEFAULT);
-        dataspace = H5Dget_space(dataset);
-        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
-        col_subrun.resize(dims[0]);
-        err = H5Dread(dataset, H5T_NATIVE_UINT, H5S_ALL, H5S_ALL, H5P_DEFAULT,
-                static_cast<void*>(col_subrun.data()));
-        H5Sclose(dataspace);
-        H5Dclose(dataset);
-        /* column for event indices */
-        std::vector<unsigned> col_evt;
-        dataset = H5Dopen(file, "/rec.sand.nus/evt", H5P_DEFAULT);
-        dataspace = H5Dget_space(dataset);
-        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
-        col_evt.resize(dims[0]);
-        err = H5Dread(dataset, H5T_NATIVE_UINT, H5S_ALL, H5S_ALL, H5P_DEFAULT,
-                static_cast<void*>(col_evt.data()));
-        H5Sclose(dataspace);
-        H5Dclose(dataset);
-
         for(uint64_t i = 0; i < dims[0]; i++) {
             current.angewsumtx = col_angewsumtx[i];
             current.angewsumty = col_angewsumty[i];
@@ -261,6 +236,226 @@ struct rec_sand_nus {
     static void from_hdf5(const std::string& filename, F&& callback) {
         hid_t file_id = H5Fopen(filename.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT);
         from_hdf5(file_id, std::forward<F>(callback));
+    }
+
+    static std::tuple<
+            std::vector<unsigned>,
+            std::vector<unsigned>,
+            std::vector<unsigned>,
+            std::vector<rec_sand_nus>
+           > from_hdf5(hid_t file) {
+        hid_t dataset;
+        hid_t dataspace;
+        hsize_t dims[2];
+        herr_t err;
+        int ndims;
+        std::vector<rec_sand_nus> content;
+        std::vector<unsigned> col_run;
+        std::vector<unsigned> col_subrun;
+        std::vector<unsigned> col_evt;
+
+        _read_indices(file, col_run, col_subrun, col_evt);
+
+        content.resize(col_run.size());
+
+        std::vector<float> col_angewsumtx; /* angewsumtx column */
+        dataset = H5Dopen(file, "/rec.sand.nus/angewsumtx", H5P_DEFAULT);
+        dataspace = H5Dget_space(dataset);
+        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
+        col_angewsumtx.resize(dims[0]);
+        err = H5Dread(dataset, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                static_cast<void*>(col_angewsumtx.data()));
+        H5Sclose(dataspace);
+        H5Dclose(dataset);
+        std::vector<float> col_angewsumty; /* angewsumty column */
+        dataset = H5Dopen(file, "/rec.sand.nus/angewsumty", H5P_DEFAULT);
+        dataspace = H5Dget_space(dataset);
+        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
+        col_angewsumty.resize(dims[0]);
+        err = H5Dread(dataset, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                static_cast<void*>(col_angewsumty.data()));
+        H5Sclose(dataspace);
+        H5Dclose(dataset);
+        std::vector<float> col_angsumtx; /* angsumtx column */
+        dataset = H5Dopen(file, "/rec.sand.nus/angsumtx", H5P_DEFAULT);
+        dataspace = H5Dget_space(dataset);
+        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
+        col_angsumtx.resize(dims[0]);
+        err = H5Dread(dataset, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                static_cast<void*>(col_angsumtx.data()));
+        H5Sclose(dataspace);
+        H5Dclose(dataset);
+        std::vector<float> col_angsumty; /* angsumty column */
+        dataset = H5Dopen(file, "/rec.sand.nus/angsumty", H5P_DEFAULT);
+        dataspace = H5Dget_space(dataset);
+        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
+        col_angsumty.resize(dims[0]);
+        err = H5Dread(dataset, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                static_cast<void*>(col_angsumty.data()));
+        H5Sclose(dataspace);
+        H5Dclose(dataset);
+        std::vector<float> col_cosewsumtx; /* cosewsumtx column */
+        dataset = H5Dopen(file, "/rec.sand.nus/cosewsumtx", H5P_DEFAULT);
+        dataspace = H5Dget_space(dataset);
+        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
+        col_cosewsumtx.resize(dims[0]);
+        err = H5Dread(dataset, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                static_cast<void*>(col_cosewsumtx.data()));
+        H5Sclose(dataspace);
+        H5Dclose(dataset);
+        std::vector<float> col_cosewsumty; /* cosewsumty column */
+        dataset = H5Dopen(file, "/rec.sand.nus/cosewsumty", H5P_DEFAULT);
+        dataspace = H5Dget_space(dataset);
+        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
+        col_cosewsumty.resize(dims[0]);
+        err = H5Dread(dataset, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                static_cast<void*>(col_cosewsumty.data()));
+        H5Sclose(dataspace);
+        H5Dclose(dataset);
+        std::vector<float> col_cossumtx; /* cossumtx column */
+        dataset = H5Dopen(file, "/rec.sand.nus/cossumtx", H5P_DEFAULT);
+        dataspace = H5Dget_space(dataset);
+        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
+        col_cossumtx.resize(dims[0]);
+        err = H5Dread(dataset, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                static_cast<void*>(col_cossumtx.data()));
+        H5Sclose(dataspace);
+        H5Dclose(dataset);
+        std::vector<float> col_cossumty; /* cossumty column */
+        dataset = H5Dopen(file, "/rec.sand.nus/cossumty", H5P_DEFAULT);
+        dataspace = H5Dget_space(dataset);
+        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
+        col_cossumty.resize(dims[0]);
+        err = H5Dread(dataset, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                static_cast<void*>(col_cossumty.data()));
+        H5Sclose(dataspace);
+        H5Dclose(dataset);
+        std::vector<std::int32_t> col_cycle; /* cycle column */
+        dataset = H5Dopen(file, "/rec.sand.nus/cycle", H5P_DEFAULT);
+        dataspace = H5Dget_space(dataset);
+        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
+        col_cycle.resize(dims[0]);
+        err = H5Dread(dataset, H5T_NATIVE_INT32, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                static_cast<void*>(col_cycle.data()));
+        H5Sclose(dataspace);
+        H5Dclose(dataset);
+        std::vector<float> col_ewsumtx; /* ewsumtx column */
+        dataset = H5Dopen(file, "/rec.sand.nus/ewsumtx", H5P_DEFAULT);
+        dataspace = H5Dget_space(dataset);
+        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
+        col_ewsumtx.resize(dims[0]);
+        err = H5Dread(dataset, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                static_cast<void*>(col_ewsumtx.data()));
+        H5Sclose(dataspace);
+        H5Dclose(dataset);
+        std::vector<float> col_ewsumty; /* ewsumty column */
+        dataset = H5Dopen(file, "/rec.sand.nus/ewsumty", H5P_DEFAULT);
+        dataspace = H5Dget_space(dataset);
+        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
+        col_ewsumty.resize(dims[0]);
+        err = H5Dread(dataset, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                static_cast<void*>(col_ewsumty.data()));
+        H5Sclose(dataspace);
+        H5Dclose(dataset);
+        std::vector<float> col_sumtx; /* sumtx column */
+        dataset = H5Dopen(file, "/rec.sand.nus/sumtx", H5P_DEFAULT);
+        dataspace = H5Dget_space(dataset);
+        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
+        col_sumtx.resize(dims[0]);
+        err = H5Dread(dataset, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                static_cast<void*>(col_sumtx.data()));
+        H5Sclose(dataspace);
+        H5Dclose(dataset);
+        std::vector<float> col_sumty; /* sumty column */
+        dataset = H5Dopen(file, "/rec.sand.nus/sumty", H5P_DEFAULT);
+        dataspace = H5Dget_space(dataset);
+        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
+        col_sumty.resize(dims[0]);
+        err = H5Dread(dataset, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                static_cast<void*>(col_sumty.data()));
+        H5Sclose(dataspace);
+        H5Dclose(dataset);
+        std::vector<std::uint16_t> col_subevt; /* subevt column */
+        dataset = H5Dopen(file, "/rec.sand.nus/subevt", H5P_DEFAULT);
+        dataspace = H5Dget_space(dataset);
+        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
+        col_subevt.resize(dims[0]);
+        err = H5Dread(dataset, H5T_NATIVE_UINT16, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                static_cast<void*>(col_subevt.data()));
+        H5Sclose(dataspace);
+        H5Dclose(dataset);
+        
+
+        for(uint64_t i = 0; i < dims[0]; i++) {
+            content[i].angewsumtx = col_angewsumtx[i];
+            content[i].angewsumty = col_angewsumty[i];
+            content[i].angsumtx = col_angsumtx[i];
+            content[i].angsumty = col_angsumty[i];
+            content[i].cosewsumtx = col_cosewsumtx[i];
+            content[i].cosewsumty = col_cosewsumty[i];
+            content[i].cossumtx = col_cossumtx[i];
+            content[i].cossumty = col_cossumty[i];
+            content[i].cycle = col_cycle[i];
+            content[i].ewsumtx = col_ewsumtx[i];
+            content[i].ewsumty = col_ewsumty[i];
+            content[i].sumtx = col_sumtx[i];
+            content[i].sumty = col_sumty[i];
+            content[i].subevt = col_subevt[i];
+            
+        }
+
+        return { col_run, col_subrun, col_evt, content };
+    }
+
+    static std::tuple<
+            std::vector<unsigned>,
+            std::vector<unsigned>,
+            std::vector<unsigned>,
+            std::vector<rec_sand_nus>
+           > from_hdf5(const std::string& filename) {
+        hid_t file_id = H5Fopen(filename.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT);
+        return from_hdf5(file_id);
+    }
+
+    private:
+
+    static void _read_indices(hid_t file,
+                              std::vector<unsigned>& runs,
+                              std::vector<unsigned>& subruns,
+                              std::vector<unsigned>& events)
+    {
+        hid_t dataset;
+        hid_t dataspace;
+        hsize_t dims[2];
+        herr_t err;
+        int ndims;
+        /* column for run indices */
+        dataset = H5Dopen(file, "/rec.sand.nus/run", H5P_DEFAULT);
+        dataspace = H5Dget_space(dataset);
+        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
+        runs.resize(dims[0]);
+        err = H5Dread(dataset, H5T_NATIVE_UINT, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                static_cast<void*>(runs.data()));
+        H5Sclose(dataspace);
+        H5Dclose(dataset);
+        /* column for subrun indices */
+        dataset = H5Dopen(file, "/rec.sand.nus/subrun", H5P_DEFAULT);
+        dataspace = H5Dget_space(dataset);
+        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
+        subruns.resize(dims[0]);
+        err = H5Dread(dataset, H5T_NATIVE_UINT, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                static_cast<void*>(subruns.data()));
+        H5Sclose(dataspace);
+        H5Dclose(dataset);
+        /* column for event indices */
+        dataset = H5Dopen(file, "/rec.sand.nus/evt", H5P_DEFAULT);
+        dataspace = H5Dget_space(dataset);
+        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
+        events.resize(dims[0]);
+        err = H5Dread(dataset, H5T_NATIVE_UINT, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                static_cast<void*>(events.data()));
+        H5Sclose(dataspace);
+        H5Dclose(dataset);
     }
 };
 

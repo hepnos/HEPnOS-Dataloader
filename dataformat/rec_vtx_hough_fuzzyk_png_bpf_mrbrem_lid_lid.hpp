@@ -6,6 +6,7 @@
 #ifndef __REC_VTX_HOUGH_FUZZYK_PNG_BPF_MRBREM_LID_LID_HPP_
 #define __REC_VTX_HOUGH_FUZZYK_PNG_BPF_MRBREM_LID_LID_HPP_
 
+#include <tuple>
 #include <string>
 #include <vector>
 #include <cstdint>
@@ -151,6 +152,11 @@ struct rec_vtx_hough_fuzzyk_png_bpf_mrbrem_lid_lid {
         hsize_t dims[2];
         herr_t err;
         int ndims;
+
+        std::vector<unsigned> col_run;
+        std::vector<unsigned> col_subrun;
+        std::vector<unsigned> col_evt;
+        _read_indices(file, col_run, col_subrun, col_evt);
 
         std::vector<float> col_ann; /* ann column */
         dataset = H5Dopen(file, "/rec.vtx.hough.fuzzyk.png.bpf.mrbrem.lid.lid/ann", H5P_DEFAULT);
@@ -613,37 +619,6 @@ struct rec_vtx_hough_fuzzyk_png_bpf_mrbrem_lid_lid {
         H5Dclose(dataset);
         
 
-        /* column for run indices */
-        std::vector<unsigned> col_run;
-        dataset = H5Dopen(file, "/rec.vtx.hough.fuzzyk.png.bpf.mrbrem.lid.lid/run", H5P_DEFAULT);
-        dataspace = H5Dget_space(dataset);
-        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
-        col_run.resize(dims[0]);
-        err = H5Dread(dataset, H5T_NATIVE_UINT, H5S_ALL, H5S_ALL, H5P_DEFAULT,
-                static_cast<void*>(col_run.data()));
-        H5Sclose(dataspace);
-        H5Dclose(dataset);
-        /* column for subrun indices */
-        std::vector<unsigned> col_subrun;
-        dataset = H5Dopen(file, "/rec.vtx.hough.fuzzyk.png.bpf.mrbrem.lid.lid/subrun", H5P_DEFAULT);
-        dataspace = H5Dget_space(dataset);
-        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
-        col_subrun.resize(dims[0]);
-        err = H5Dread(dataset, H5T_NATIVE_UINT, H5S_ALL, H5S_ALL, H5P_DEFAULT,
-                static_cast<void*>(col_subrun.data()));
-        H5Sclose(dataspace);
-        H5Dclose(dataset);
-        /* column for event indices */
-        std::vector<unsigned> col_evt;
-        dataset = H5Dopen(file, "/rec.vtx.hough.fuzzyk.png.bpf.mrbrem.lid.lid/evt", H5P_DEFAULT);
-        dataspace = H5Dget_space(dataset);
-        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
-        col_evt.resize(dims[0]);
-        err = H5Dread(dataset, H5T_NATIVE_UINT, H5S_ALL, H5S_ALL, H5P_DEFAULT,
-                static_cast<void*>(col_evt.data()));
-        H5Sclose(dataspace);
-        H5Dclose(dataset);
-
         for(uint64_t i = 0; i < dims[0]; i++) {
             current.ann = col_ann[i];
             current.anne = col_anne[i];
@@ -705,6 +680,596 @@ struct rec_vtx_hough_fuzzyk_png_bpf_mrbrem_lid_lid {
     static void from_hdf5(const std::string& filename, F&& callback) {
         hid_t file_id = H5Fopen(filename.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT);
         from_hdf5(file_id, std::forward<F>(callback));
+    }
+
+    static std::tuple<
+            std::vector<unsigned>,
+            std::vector<unsigned>,
+            std::vector<unsigned>,
+            std::vector<rec_vtx_hough_fuzzyk_png_bpf_mrbrem_lid_lid>
+           > from_hdf5(hid_t file) {
+        hid_t dataset;
+        hid_t dataspace;
+        hsize_t dims[2];
+        herr_t err;
+        int ndims;
+        std::vector<rec_vtx_hough_fuzzyk_png_bpf_mrbrem_lid_lid> content;
+        std::vector<unsigned> col_run;
+        std::vector<unsigned> col_subrun;
+        std::vector<unsigned> col_evt;
+
+        _read_indices(file, col_run, col_subrun, col_evt);
+
+        content.resize(col_run.size());
+
+        std::vector<float> col_ann; /* ann column */
+        dataset = H5Dopen(file, "/rec.vtx.hough.fuzzyk.png.bpf.mrbrem.lid.lid/ann", H5P_DEFAULT);
+        dataspace = H5Dget_space(dataset);
+        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
+        col_ann.resize(dims[0]);
+        err = H5Dread(dataset, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                static_cast<void*>(col_ann.data()));
+        H5Sclose(dataspace);
+        H5Dclose(dataset);
+        std::vector<float> col_anne; /* anne column */
+        dataset = H5Dopen(file, "/rec.vtx.hough.fuzzyk.png.bpf.mrbrem.lid.lid/anne", H5P_DEFAULT);
+        dataspace = H5Dget_space(dataset);
+        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
+        col_anne.resize(dims[0]);
+        err = H5Dread(dataset, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                static_cast<void*>(col_anne.data()));
+        H5Sclose(dataspace);
+        H5Dclose(dataset);
+        std::vector<float> col_annecos; /* annecos column */
+        dataset = H5Dopen(file, "/rec.vtx.hough.fuzzyk.png.bpf.mrbrem.lid.lid/annecos", H5P_DEFAULT);
+        dataspace = H5Dget_space(dataset);
+        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
+        col_annecos.resize(dims[0]);
+        err = H5Dread(dataset, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                static_cast<void*>(col_annecos.data()));
+        H5Sclose(dataspace);
+        H5Dclose(dataset);
+        std::vector<float> col_annepi0; /* annepi0 column */
+        dataset = H5Dopen(file, "/rec.vtx.hough.fuzzyk.png.bpf.mrbrem.lid.lid/annepi0", H5P_DEFAULT);
+        dataspace = H5Dget_space(dataset);
+        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
+        col_annepi0.resize(dims[0]);
+        err = H5Dread(dataset, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                static_cast<void*>(col_annepi0.data()));
+        H5Sclose(dataspace);
+        H5Dclose(dataset);
+        std::vector<float> col_costheta; /* costheta column */
+        dataset = H5Dopen(file, "/rec.vtx.hough.fuzzyk.png.bpf.mrbrem.lid.lid/costheta", H5P_DEFAULT);
+        dataspace = H5Dget_space(dataset);
+        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
+        col_costheta.resize(dims[0]);
+        err = H5Dread(dataset, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                static_cast<void*>(col_costheta.data()));
+        H5Sclose(dataspace);
+        H5Dclose(dataset);
+        std::vector<std::int32_t> col_cycle; /* cycle column */
+        dataset = H5Dopen(file, "/rec.vtx.hough.fuzzyk.png.bpf.mrbrem.lid.lid/cycle", H5P_DEFAULT);
+        dataspace = H5Dget_space(dataset);
+        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
+        col_cycle.resize(dims[0]);
+        err = H5Dread(dataset, H5T_NATIVE_INT32, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                static_cast<void*>(col_cycle.data()));
+        H5Sclose(dataspace);
+        H5Dclose(dataset);
+        std::vector<float> col_dedx0; /* dedx0 column */
+        dataset = H5Dopen(file, "/rec.vtx.hough.fuzzyk.png.bpf.mrbrem.lid.lid/dedx0", H5P_DEFAULT);
+        dataspace = H5Dget_space(dataset);
+        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
+        col_dedx0.resize(dims[0]);
+        err = H5Dread(dataset, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                static_cast<void*>(col_dedx0.data()));
+        H5Sclose(dataspace);
+        H5Dclose(dataset);
+        std::vector<float> col_dedx1; /* dedx1 column */
+        dataset = H5Dopen(file, "/rec.vtx.hough.fuzzyk.png.bpf.mrbrem.lid.lid/dedx1", H5P_DEFAULT);
+        dataspace = H5Dget_space(dataset);
+        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
+        col_dedx1.resize(dims[0]);
+        err = H5Dread(dataset, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                static_cast<void*>(col_dedx1.data()));
+        H5Sclose(dataspace);
+        H5Dclose(dataset);
+        std::vector<float> col_dedx2; /* dedx2 column */
+        dataset = H5Dopen(file, "/rec.vtx.hough.fuzzyk.png.bpf.mrbrem.lid.lid/dedx2", H5P_DEFAULT);
+        dataspace = H5Dget_space(dataset);
+        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
+        col_dedx2.resize(dims[0]);
+        err = H5Dread(dataset, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                static_cast<void*>(col_dedx2.data()));
+        H5Sclose(dataspace);
+        H5Dclose(dataset);
+        std::vector<float> col_dedx3; /* dedx3 column */
+        dataset = H5Dopen(file, "/rec.vtx.hough.fuzzyk.png.bpf.mrbrem.lid.lid/dedx3", H5P_DEFAULT);
+        dataspace = H5Dget_space(dataset);
+        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
+        col_dedx3.resize(dims[0]);
+        err = H5Dread(dataset, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                static_cast<void*>(col_dedx3.data()));
+        H5Sclose(dataspace);
+        H5Dclose(dataset);
+        std::vector<float> col_dedx4; /* dedx4 column */
+        dataset = H5Dopen(file, "/rec.vtx.hough.fuzzyk.png.bpf.mrbrem.lid.lid/dedx4", H5P_DEFAULT);
+        dataspace = H5Dget_space(dataset);
+        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
+        col_dedx4.resize(dims[0]);
+        err = H5Dread(dataset, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                static_cast<void*>(col_dedx4.data()));
+        H5Sclose(dataspace);
+        H5Dclose(dataset);
+        std::vector<float> col_dedx5; /* dedx5 column */
+        dataset = H5Dopen(file, "/rec.vtx.hough.fuzzyk.png.bpf.mrbrem.lid.lid/dedx5", H5P_DEFAULT);
+        dataspace = H5Dget_space(dataset);
+        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
+        col_dedx5.resize(dims[0]);
+        err = H5Dread(dataset, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                static_cast<void*>(col_dedx5.data()));
+        H5Sclose(dataspace);
+        H5Dclose(dataset);
+        std::vector<float> col_dedxp0c0; /* dedxp0c0 column */
+        dataset = H5Dopen(file, "/rec.vtx.hough.fuzzyk.png.bpf.mrbrem.lid.lid/dedxp0c0", H5P_DEFAULT);
+        dataspace = H5Dget_space(dataset);
+        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
+        col_dedxp0c0.resize(dims[0]);
+        err = H5Dread(dataset, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                static_cast<void*>(col_dedxp0c0.data()));
+        H5Sclose(dataspace);
+        H5Dclose(dataset);
+        std::vector<float> col_dedxp0c1; /* dedxp0c1 column */
+        dataset = H5Dopen(file, "/rec.vtx.hough.fuzzyk.png.bpf.mrbrem.lid.lid/dedxp0c1", H5P_DEFAULT);
+        dataspace = H5Dget_space(dataset);
+        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
+        col_dedxp0c1.resize(dims[0]);
+        err = H5Dread(dataset, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                static_cast<void*>(col_dedxp0c1.data()));
+        H5Sclose(dataspace);
+        H5Dclose(dataset);
+        std::vector<float> col_dedxp1c0; /* dedxp1c0 column */
+        dataset = H5Dopen(file, "/rec.vtx.hough.fuzzyk.png.bpf.mrbrem.lid.lid/dedxp1c0", H5P_DEFAULT);
+        dataspace = H5Dget_space(dataset);
+        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
+        col_dedxp1c0.resize(dims[0]);
+        err = H5Dread(dataset, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                static_cast<void*>(col_dedxp1c0.data()));
+        H5Sclose(dataspace);
+        H5Dclose(dataset);
+        std::vector<float> col_dedxp1c1; /* dedxp1c1 column */
+        dataset = H5Dopen(file, "/rec.vtx.hough.fuzzyk.png.bpf.mrbrem.lid.lid/dedxp1c1", H5P_DEFAULT);
+        dataspace = H5Dget_space(dataset);
+        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
+        col_dedxp1c1.resize(dims[0]);
+        err = H5Dread(dataset, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                static_cast<void*>(col_dedxp1c1.data()));
+        H5Sclose(dataspace);
+        H5Dclose(dataset);
+        std::vector<float> col_dedxp2c0; /* dedxp2c0 column */
+        dataset = H5Dopen(file, "/rec.vtx.hough.fuzzyk.png.bpf.mrbrem.lid.lid/dedxp2c0", H5P_DEFAULT);
+        dataspace = H5Dget_space(dataset);
+        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
+        col_dedxp2c0.resize(dims[0]);
+        err = H5Dread(dataset, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                static_cast<void*>(col_dedxp2c0.data()));
+        H5Sclose(dataspace);
+        H5Dclose(dataset);
+        std::vector<float> col_dedxp2c1; /* dedxp2c1 column */
+        dataset = H5Dopen(file, "/rec.vtx.hough.fuzzyk.png.bpf.mrbrem.lid.lid/dedxp2c1", H5P_DEFAULT);
+        dataspace = H5Dget_space(dataset);
+        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
+        col_dedxp2c1.resize(dims[0]);
+        err = H5Dread(dataset, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                static_cast<void*>(col_dedxp2c1.data()));
+        H5Sclose(dataspace);
+        H5Dclose(dataset);
+        std::vector<float> col_dedxp3c0; /* dedxp3c0 column */
+        dataset = H5Dopen(file, "/rec.vtx.hough.fuzzyk.png.bpf.mrbrem.lid.lid/dedxp3c0", H5P_DEFAULT);
+        dataspace = H5Dget_space(dataset);
+        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
+        col_dedxp3c0.resize(dims[0]);
+        err = H5Dread(dataset, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                static_cast<void*>(col_dedxp3c0.data()));
+        H5Sclose(dataspace);
+        H5Dclose(dataset);
+        std::vector<float> col_dedxp3c1; /* dedxp3c1 column */
+        dataset = H5Dopen(file, "/rec.vtx.hough.fuzzyk.png.bpf.mrbrem.lid.lid/dedxp3c1", H5P_DEFAULT);
+        dataspace = H5Dget_space(dataset);
+        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
+        col_dedxp3c1.resize(dims[0]);
+        err = H5Dread(dataset, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                static_cast<void*>(col_dedxp3c1.data()));
+        H5Sclose(dataspace);
+        H5Dclose(dataset);
+        std::vector<float> col_dedxp4c0; /* dedxp4c0 column */
+        dataset = H5Dopen(file, "/rec.vtx.hough.fuzzyk.png.bpf.mrbrem.lid.lid/dedxp4c0", H5P_DEFAULT);
+        dataspace = H5Dget_space(dataset);
+        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
+        col_dedxp4c0.resize(dims[0]);
+        err = H5Dread(dataset, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                static_cast<void*>(col_dedxp4c0.data()));
+        H5Sclose(dataspace);
+        H5Dclose(dataset);
+        std::vector<float> col_dedxp4c1; /* dedxp4c1 column */
+        dataset = H5Dopen(file, "/rec.vtx.hough.fuzzyk.png.bpf.mrbrem.lid.lid/dedxp4c1", H5P_DEFAULT);
+        dataspace = H5Dget_space(dataset);
+        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
+        col_dedxp4c1.resize(dims[0]);
+        err = H5Dread(dataset, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                static_cast<void*>(col_dedxp4c1.data()));
+        H5Sclose(dataspace);
+        H5Dclose(dataset);
+        std::vector<float> col_dedxp5c0; /* dedxp5c0 column */
+        dataset = H5Dopen(file, "/rec.vtx.hough.fuzzyk.png.bpf.mrbrem.lid.lid/dedxp5c0", H5P_DEFAULT);
+        dataspace = H5Dget_space(dataset);
+        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
+        col_dedxp5c0.resize(dims[0]);
+        err = H5Dread(dataset, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                static_cast<void*>(col_dedxp5c0.data()));
+        H5Sclose(dataspace);
+        H5Dclose(dataset);
+        std::vector<float> col_dedxp5c1; /* dedxp5c1 column */
+        dataset = H5Dopen(file, "/rec.vtx.hough.fuzzyk.png.bpf.mrbrem.lid.lid/dedxp5c1", H5P_DEFAULT);
+        dataspace = H5Dget_space(dataset);
+        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
+        col_dedxp5c1.resize(dims[0]);
+        err = H5Dread(dataset, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                static_cast<void*>(col_dedxp5c1.data()));
+        H5Sclose(dataspace);
+        H5Dclose(dataset);
+        std::vector<float> col_eglll; /* eglll column */
+        dataset = H5Dopen(file, "/rec.vtx.hough.fuzzyk.png.bpf.mrbrem.lid.lid/eglll", H5P_DEFAULT);
+        dataspace = H5Dget_space(dataset);
+        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
+        col_eglll.resize(dims[0]);
+        err = H5Dread(dataset, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                static_cast<void*>(col_eglll.data()));
+        H5Sclose(dataspace);
+        H5Dclose(dataset);
+        std::vector<float> col_egllt; /* egllt column */
+        dataset = H5Dopen(file, "/rec.vtx.hough.fuzzyk.png.bpf.mrbrem.lid.lid/egllt", H5P_DEFAULT);
+        dataspace = H5Dget_space(dataset);
+        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
+        col_egllt.resize(dims[0]);
+        err = H5Dread(dataset, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                static_cast<void*>(col_egllt.data()));
+        H5Sclose(dataspace);
+        H5Dclose(dataset);
+        std::vector<float> col_elll; /* elll column */
+        dataset = H5Dopen(file, "/rec.vtx.hough.fuzzyk.png.bpf.mrbrem.lid.lid/elll", H5P_DEFAULT);
+        dataspace = H5Dget_space(dataset);
+        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
+        col_elll.resize(dims[0]);
+        err = H5Dread(dataset, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                static_cast<void*>(col_elll.data()));
+        H5Sclose(dataspace);
+        H5Dclose(dataset);
+        std::vector<float> col_ellt; /* ellt column */
+        dataset = H5Dopen(file, "/rec.vtx.hough.fuzzyk.png.bpf.mrbrem.lid.lid/ellt", H5P_DEFAULT);
+        dataspace = H5Dget_space(dataset);
+        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
+        col_ellt.resize(dims[0]);
+        err = H5Dread(dataset, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                static_cast<void*>(col_ellt.data()));
+        H5Sclose(dataspace);
+        H5Dclose(dataset);
+        std::vector<float> col_emulll; /* emulll column */
+        dataset = H5Dopen(file, "/rec.vtx.hough.fuzzyk.png.bpf.mrbrem.lid.lid/emulll", H5P_DEFAULT);
+        dataspace = H5Dget_space(dataset);
+        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
+        col_emulll.resize(dims[0]);
+        err = H5Dread(dataset, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                static_cast<void*>(col_emulll.data()));
+        H5Sclose(dataspace);
+        H5Dclose(dataset);
+        std::vector<float> col_emullt; /* emullt column */
+        dataset = H5Dopen(file, "/rec.vtx.hough.fuzzyk.png.bpf.mrbrem.lid.lid/emullt", H5P_DEFAULT);
+        dataspace = H5Dget_space(dataset);
+        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
+        col_emullt.resize(dims[0]);
+        err = H5Dread(dataset, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                static_cast<void*>(col_emullt.data()));
+        H5Sclose(dataspace);
+        H5Dclose(dataset);
+        std::vector<float> col_enlll; /* enlll column */
+        dataset = H5Dopen(file, "/rec.vtx.hough.fuzzyk.png.bpf.mrbrem.lid.lid/enlll", H5P_DEFAULT);
+        dataspace = H5Dget_space(dataset);
+        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
+        col_enlll.resize(dims[0]);
+        err = H5Dread(dataset, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                static_cast<void*>(col_enlll.data()));
+        H5Sclose(dataspace);
+        H5Dclose(dataset);
+        std::vector<float> col_enllt; /* enllt column */
+        dataset = H5Dopen(file, "/rec.vtx.hough.fuzzyk.png.bpf.mrbrem.lid.lid/enllt", H5P_DEFAULT);
+        dataspace = H5Dget_space(dataset);
+        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
+        col_enllt.resize(dims[0]);
+        err = H5Dread(dataset, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                static_cast<void*>(col_enllt.data()));
+        H5Sclose(dataspace);
+        H5Dclose(dataset);
+        std::vector<float> col_epi0lll; /* epi0lll column */
+        dataset = H5Dopen(file, "/rec.vtx.hough.fuzzyk.png.bpf.mrbrem.lid.lid/epi0lll", H5P_DEFAULT);
+        dataspace = H5Dget_space(dataset);
+        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
+        col_epi0lll.resize(dims[0]);
+        err = H5Dread(dataset, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                static_cast<void*>(col_epi0lll.data()));
+        H5Sclose(dataspace);
+        H5Dclose(dataset);
+        std::vector<float> col_epi0llt; /* epi0llt column */
+        dataset = H5Dopen(file, "/rec.vtx.hough.fuzzyk.png.bpf.mrbrem.lid.lid/epi0llt", H5P_DEFAULT);
+        dataspace = H5Dget_space(dataset);
+        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
+        col_epi0llt.resize(dims[0]);
+        err = H5Dread(dataset, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                static_cast<void*>(col_epi0llt.data()));
+        H5Sclose(dataspace);
+        H5Dclose(dataset);
+        std::vector<float> col_epilll; /* epilll column */
+        dataset = H5Dopen(file, "/rec.vtx.hough.fuzzyk.png.bpf.mrbrem.lid.lid/epilll", H5P_DEFAULT);
+        dataspace = H5Dget_space(dataset);
+        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
+        col_epilll.resize(dims[0]);
+        err = H5Dread(dataset, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                static_cast<void*>(col_epilll.data()));
+        H5Sclose(dataspace);
+        H5Dclose(dataset);
+        std::vector<float> col_epillt; /* epillt column */
+        dataset = H5Dopen(file, "/rec.vtx.hough.fuzzyk.png.bpf.mrbrem.lid.lid/epillt", H5P_DEFAULT);
+        dataspace = H5Dget_space(dataset);
+        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
+        col_epillt.resize(dims[0]);
+        err = H5Dread(dataset, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                static_cast<void*>(col_epillt.data()));
+        H5Sclose(dataspace);
+        H5Dclose(dataset);
+        std::vector<float> col_eplll; /* eplll column */
+        dataset = H5Dopen(file, "/rec.vtx.hough.fuzzyk.png.bpf.mrbrem.lid.lid/eplll", H5P_DEFAULT);
+        dataspace = H5Dget_space(dataset);
+        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
+        col_eplll.resize(dims[0]);
+        err = H5Dread(dataset, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                static_cast<void*>(col_eplll.data()));
+        H5Sclose(dataspace);
+        H5Dclose(dataset);
+        std::vector<float> col_epllt; /* epllt column */
+        dataset = H5Dopen(file, "/rec.vtx.hough.fuzzyk.png.bpf.mrbrem.lid.lid/epllt", H5P_DEFAULT);
+        dataspace = H5Dget_space(dataset);
+        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
+        col_epllt.resize(dims[0]);
+        err = H5Dread(dataset, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                static_cast<void*>(col_epllt.data()));
+        H5Sclose(dataspace);
+        H5Dclose(dataset);
+        std::vector<float> col_gap; /* gap column */
+        dataset = H5Dopen(file, "/rec.vtx.hough.fuzzyk.png.bpf.mrbrem.lid.lid/gap", H5P_DEFAULT);
+        dataspace = H5Dget_space(dataset);
+        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
+        col_gap.resize(dims[0]);
+        err = H5Dread(dataset, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                static_cast<void*>(col_gap.data()));
+        H5Sclose(dataspace);
+        H5Dclose(dataset);
+        std::vector<float> col_invglll; /* invglll column */
+        dataset = H5Dopen(file, "/rec.vtx.hough.fuzzyk.png.bpf.mrbrem.lid.lid/invglll", H5P_DEFAULT);
+        dataspace = H5Dget_space(dataset);
+        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
+        col_invglll.resize(dims[0]);
+        err = H5Dread(dataset, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                static_cast<void*>(col_invglll.data()));
+        H5Sclose(dataspace);
+        H5Dclose(dataset);
+        std::vector<std::int32_t> col_ismuon; /* ismuon column */
+        dataset = H5Dopen(file, "/rec.vtx.hough.fuzzyk.png.bpf.mrbrem.lid.lid/ismuon", H5P_DEFAULT);
+        dataspace = H5Dget_space(dataset);
+        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
+        col_ismuon.resize(dims[0]);
+        err = H5Dread(dataset, H5T_NATIVE_INT32, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                static_cast<void*>(col_ismuon.data()));
+        H5Sclose(dataspace);
+        H5Dclose(dataset);
+        std::vector<float> col_mulll; /* mulll column */
+        dataset = H5Dopen(file, "/rec.vtx.hough.fuzzyk.png.bpf.mrbrem.lid.lid/mulll", H5P_DEFAULT);
+        dataspace = H5Dget_space(dataset);
+        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
+        col_mulll.resize(dims[0]);
+        err = H5Dread(dataset, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                static_cast<void*>(col_mulll.data()));
+        H5Sclose(dataspace);
+        H5Dclose(dataset);
+        std::vector<float> col_mullt; /* mullt column */
+        dataset = H5Dopen(file, "/rec.vtx.hough.fuzzyk.png.bpf.mrbrem.lid.lid/mullt", H5P_DEFAULT);
+        dataspace = H5Dget_space(dataset);
+        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
+        col_mullt.resize(dims[0]);
+        err = H5Dread(dataset, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                static_cast<void*>(col_mullt.data()));
+        H5Sclose(dataspace);
+        H5Dclose(dataset);
+        std::vector<float> col_pi0mass; /* pi0mass column */
+        dataset = H5Dopen(file, "/rec.vtx.hough.fuzzyk.png.bpf.mrbrem.lid.lid/pi0mass", H5P_DEFAULT);
+        dataspace = H5Dget_space(dataset);
+        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
+        col_pi0mass.resize(dims[0]);
+        err = H5Dread(dataset, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                static_cast<void*>(col_pi0mass.data()));
+        H5Sclose(dataspace);
+        H5Dclose(dataset);
+        std::vector<std::uint32_t> col_rec_vtx_hough_fuzzyk_png_bpf_mrbrem_idx; /* rec.vtx.hough.fuzzyk.png.bpf.mrbrem_idx column */
+        dataset = H5Dopen(file, "/rec.vtx.hough.fuzzyk.png.bpf.mrbrem.lid.lid/rec.vtx.hough.fuzzyk.png.bpf.mrbrem_idx", H5P_DEFAULT);
+        dataspace = H5Dget_space(dataset);
+        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
+        col_rec_vtx_hough_fuzzyk_png_bpf_mrbrem_idx.resize(dims[0]);
+        err = H5Dread(dataset, H5T_NATIVE_UINT32, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                static_cast<void*>(col_rec_vtx_hough_fuzzyk_png_bpf_mrbrem_idx.data()));
+        H5Sclose(dataspace);
+        H5Dclose(dataset);
+        std::vector<std::uint32_t> col_rec_vtx_hough_fuzzyk_png_bpf_idx; /* rec.vtx.hough.fuzzyk.png.bpf_idx column */
+        dataset = H5Dopen(file, "/rec.vtx.hough.fuzzyk.png.bpf.mrbrem.lid.lid/rec.vtx.hough.fuzzyk.png.bpf_idx", H5P_DEFAULT);
+        dataspace = H5Dget_space(dataset);
+        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
+        col_rec_vtx_hough_fuzzyk_png_bpf_idx.resize(dims[0]);
+        err = H5Dread(dataset, H5T_NATIVE_UINT32, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                static_cast<void*>(col_rec_vtx_hough_fuzzyk_png_bpf_idx.data()));
+        H5Sclose(dataspace);
+        H5Dclose(dataset);
+        std::vector<std::uint32_t> col_rec_vtx_hough_fuzzyk_png_idx; /* rec.vtx.hough.fuzzyk.png_idx column */
+        dataset = H5Dopen(file, "/rec.vtx.hough.fuzzyk.png.bpf.mrbrem.lid.lid/rec.vtx.hough.fuzzyk.png_idx", H5P_DEFAULT);
+        dataspace = H5Dget_space(dataset);
+        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
+        col_rec_vtx_hough_fuzzyk_png_idx.resize(dims[0]);
+        err = H5Dread(dataset, H5T_NATIVE_UINT32, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                static_cast<void*>(col_rec_vtx_hough_fuzzyk_png_idx.data()));
+        H5Sclose(dataspace);
+        H5Dclose(dataset);
+        std::vector<std::uint32_t> col_rec_vtx_hough_idx; /* rec.vtx.hough_idx column */
+        dataset = H5Dopen(file, "/rec.vtx.hough.fuzzyk.png.bpf.mrbrem.lid.lid/rec.vtx.hough_idx", H5P_DEFAULT);
+        dataspace = H5Dget_space(dataset);
+        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
+        col_rec_vtx_hough_idx.resize(dims[0]);
+        err = H5Dread(dataset, H5T_NATIVE_UINT32, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                static_cast<void*>(col_rec_vtx_hough_idx.data()));
+        H5Sclose(dataspace);
+        H5Dclose(dataset);
+        std::vector<float> col_shwEFrac; /* shwEFrac column */
+        dataset = H5Dopen(file, "/rec.vtx.hough.fuzzyk.png.bpf.mrbrem.lid.lid/shwEFrac", H5P_DEFAULT);
+        dataspace = H5Dget_space(dataset);
+        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
+        col_shwEFrac.resize(dims[0]);
+        err = H5Dread(dataset, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                static_cast<void*>(col_shwEFrac.data()));
+        H5Sclose(dataspace);
+        H5Dclose(dataset);
+        std::vector<float> col_vtxgev; /* vtxgev column */
+        dataset = H5Dopen(file, "/rec.vtx.hough.fuzzyk.png.bpf.mrbrem.lid.lid/vtxgev", H5P_DEFAULT);
+        dataspace = H5Dget_space(dataset);
+        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
+        col_vtxgev.resize(dims[0]);
+        err = H5Dread(dataset, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                static_cast<void*>(col_vtxgev.data()));
+        H5Sclose(dataspace);
+        H5Dclose(dataset);
+        std::vector<std::uint16_t> col_subevt; /* subevt column */
+        dataset = H5Dopen(file, "/rec.vtx.hough.fuzzyk.png.bpf.mrbrem.lid.lid/subevt", H5P_DEFAULT);
+        dataspace = H5Dget_space(dataset);
+        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
+        col_subevt.resize(dims[0]);
+        err = H5Dread(dataset, H5T_NATIVE_UINT16, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                static_cast<void*>(col_subevt.data()));
+        H5Sclose(dataspace);
+        H5Dclose(dataset);
+        
+
+        for(uint64_t i = 0; i < dims[0]; i++) {
+            content[i].ann = col_ann[i];
+            content[i].anne = col_anne[i];
+            content[i].annecos = col_annecos[i];
+            content[i].annepi0 = col_annepi0[i];
+            content[i].costheta = col_costheta[i];
+            content[i].cycle = col_cycle[i];
+            content[i].dedx0 = col_dedx0[i];
+            content[i].dedx1 = col_dedx1[i];
+            content[i].dedx2 = col_dedx2[i];
+            content[i].dedx3 = col_dedx3[i];
+            content[i].dedx4 = col_dedx4[i];
+            content[i].dedx5 = col_dedx5[i];
+            content[i].dedxp0c0 = col_dedxp0c0[i];
+            content[i].dedxp0c1 = col_dedxp0c1[i];
+            content[i].dedxp1c0 = col_dedxp1c0[i];
+            content[i].dedxp1c1 = col_dedxp1c1[i];
+            content[i].dedxp2c0 = col_dedxp2c0[i];
+            content[i].dedxp2c1 = col_dedxp2c1[i];
+            content[i].dedxp3c0 = col_dedxp3c0[i];
+            content[i].dedxp3c1 = col_dedxp3c1[i];
+            content[i].dedxp4c0 = col_dedxp4c0[i];
+            content[i].dedxp4c1 = col_dedxp4c1[i];
+            content[i].dedxp5c0 = col_dedxp5c0[i];
+            content[i].dedxp5c1 = col_dedxp5c1[i];
+            content[i].eglll = col_eglll[i];
+            content[i].egllt = col_egllt[i];
+            content[i].elll = col_elll[i];
+            content[i].ellt = col_ellt[i];
+            content[i].emulll = col_emulll[i];
+            content[i].emullt = col_emullt[i];
+            content[i].enlll = col_enlll[i];
+            content[i].enllt = col_enllt[i];
+            content[i].epi0lll = col_epi0lll[i];
+            content[i].epi0llt = col_epi0llt[i];
+            content[i].epilll = col_epilll[i];
+            content[i].epillt = col_epillt[i];
+            content[i].eplll = col_eplll[i];
+            content[i].epllt = col_epllt[i];
+            content[i].gap = col_gap[i];
+            content[i].invglll = col_invglll[i];
+            content[i].ismuon = col_ismuon[i];
+            content[i].mulll = col_mulll[i];
+            content[i].mullt = col_mullt[i];
+            content[i].pi0mass = col_pi0mass[i];
+            content[i].rec_vtx_hough_fuzzyk_png_bpf_mrbrem_idx = col_rec_vtx_hough_fuzzyk_png_bpf_mrbrem_idx[i];
+            content[i].rec_vtx_hough_fuzzyk_png_bpf_idx = col_rec_vtx_hough_fuzzyk_png_bpf_idx[i];
+            content[i].rec_vtx_hough_fuzzyk_png_idx = col_rec_vtx_hough_fuzzyk_png_idx[i];
+            content[i].rec_vtx_hough_idx = col_rec_vtx_hough_idx[i];
+            content[i].shwEFrac = col_shwEFrac[i];
+            content[i].vtxgev = col_vtxgev[i];
+            content[i].subevt = col_subevt[i];
+            
+        }
+
+        return { col_run, col_subrun, col_evt, content };
+    }
+
+    static std::tuple<
+            std::vector<unsigned>,
+            std::vector<unsigned>,
+            std::vector<unsigned>,
+            std::vector<rec_vtx_hough_fuzzyk_png_bpf_mrbrem_lid_lid>
+           > from_hdf5(const std::string& filename) {
+        hid_t file_id = H5Fopen(filename.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT);
+        return from_hdf5(file_id);
+    }
+
+    private:
+
+    static void _read_indices(hid_t file,
+                              std::vector<unsigned>& runs,
+                              std::vector<unsigned>& subruns,
+                              std::vector<unsigned>& events)
+    {
+        hid_t dataset;
+        hid_t dataspace;
+        hsize_t dims[2];
+        herr_t err;
+        int ndims;
+        /* column for run indices */
+        dataset = H5Dopen(file, "/rec.vtx.hough.fuzzyk.png.bpf.mrbrem.lid.lid/run", H5P_DEFAULT);
+        dataspace = H5Dget_space(dataset);
+        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
+        runs.resize(dims[0]);
+        err = H5Dread(dataset, H5T_NATIVE_UINT, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                static_cast<void*>(runs.data()));
+        H5Sclose(dataspace);
+        H5Dclose(dataset);
+        /* column for subrun indices */
+        dataset = H5Dopen(file, "/rec.vtx.hough.fuzzyk.png.bpf.mrbrem.lid.lid/subrun", H5P_DEFAULT);
+        dataspace = H5Dget_space(dataset);
+        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
+        subruns.resize(dims[0]);
+        err = H5Dread(dataset, H5T_NATIVE_UINT, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                static_cast<void*>(subruns.data()));
+        H5Sclose(dataspace);
+        H5Dclose(dataset);
+        /* column for event indices */
+        dataset = H5Dopen(file, "/rec.vtx.hough.fuzzyk.png.bpf.mrbrem.lid.lid/evt", H5P_DEFAULT);
+        dataspace = H5Dget_space(dataset);
+        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
+        events.resize(dims[0]);
+        err = H5Dread(dataset, H5T_NATIVE_UINT, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                static_cast<void*>(events.data()));
+        H5Sclose(dataspace);
+        H5Dclose(dataset);
     }
 };
 

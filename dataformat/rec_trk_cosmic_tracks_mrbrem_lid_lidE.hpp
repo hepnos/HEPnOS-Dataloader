@@ -6,6 +6,7 @@
 #ifndef __REC_TRK_COSMIC_TRACKS_MRBREM_LID_LIDE_HPP_
 #define __REC_TRK_COSMIC_TRACKS_MRBREM_LID_LIDE_HPP_
 
+#include <tuple>
 #include <string>
 #include <vector>
 #include <cstdint>
@@ -65,6 +66,11 @@ struct rec_trk_cosmic_tracks_mrbrem_lid_lidE {
         hsize_t dims[2];
         herr_t err;
         int ndims;
+
+        std::vector<unsigned> col_run;
+        std::vector<unsigned> col_subrun;
+        std::vector<unsigned> col_evt;
+        _read_indices(file, col_run, col_subrun, col_evt);
 
         std::vector<float> col_E; /* E column */
         dataset = H5Dopen(file, "/rec.trk.cosmic.tracks.mrbrem.lid.lidE/E", H5P_DEFAULT);
@@ -140,37 +146,6 @@ struct rec_trk_cosmic_tracks_mrbrem_lid_lidE {
         H5Dclose(dataset);
         
 
-        /* column for run indices */
-        std::vector<unsigned> col_run;
-        dataset = H5Dopen(file, "/rec.trk.cosmic.tracks.mrbrem.lid.lidE/run", H5P_DEFAULT);
-        dataspace = H5Dget_space(dataset);
-        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
-        col_run.resize(dims[0]);
-        err = H5Dread(dataset, H5T_NATIVE_UINT, H5S_ALL, H5S_ALL, H5P_DEFAULT,
-                static_cast<void*>(col_run.data()));
-        H5Sclose(dataspace);
-        H5Dclose(dataset);
-        /* column for subrun indices */
-        std::vector<unsigned> col_subrun;
-        dataset = H5Dopen(file, "/rec.trk.cosmic.tracks.mrbrem.lid.lidE/subrun", H5P_DEFAULT);
-        dataspace = H5Dget_space(dataset);
-        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
-        col_subrun.resize(dims[0]);
-        err = H5Dread(dataset, H5T_NATIVE_UINT, H5S_ALL, H5S_ALL, H5P_DEFAULT,
-                static_cast<void*>(col_subrun.data()));
-        H5Sclose(dataspace);
-        H5Dclose(dataset);
-        /* column for event indices */
-        std::vector<unsigned> col_evt;
-        dataset = H5Dopen(file, "/rec.trk.cosmic.tracks.mrbrem.lid.lidE/evt", H5P_DEFAULT);
-        dataspace = H5Dget_space(dataset);
-        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
-        col_evt.resize(dims[0]);
-        err = H5Dread(dataset, H5T_NATIVE_UINT, H5S_ALL, H5S_ALL, H5P_DEFAULT,
-                static_cast<void*>(col_evt.data()));
-        H5Sclose(dataspace);
-        H5Dclose(dataset);
-
         for(uint64_t i = 0; i < dims[0]; i++) {
             current.E = col_E[i];
             current.cycle = col_cycle[i];
@@ -189,6 +164,166 @@ struct rec_trk_cosmic_tracks_mrbrem_lid_lidE {
     static void from_hdf5(const std::string& filename, F&& callback) {
         hid_t file_id = H5Fopen(filename.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT);
         from_hdf5(file_id, std::forward<F>(callback));
+    }
+
+    static std::tuple<
+            std::vector<unsigned>,
+            std::vector<unsigned>,
+            std::vector<unsigned>,
+            std::vector<rec_trk_cosmic_tracks_mrbrem_lid_lidE>
+           > from_hdf5(hid_t file) {
+        hid_t dataset;
+        hid_t dataspace;
+        hsize_t dims[2];
+        herr_t err;
+        int ndims;
+        std::vector<rec_trk_cosmic_tracks_mrbrem_lid_lidE> content;
+        std::vector<unsigned> col_run;
+        std::vector<unsigned> col_subrun;
+        std::vector<unsigned> col_evt;
+
+        _read_indices(file, col_run, col_subrun, col_evt);
+
+        content.resize(col_run.size());
+
+        std::vector<float> col_E; /* E column */
+        dataset = H5Dopen(file, "/rec.trk.cosmic.tracks.mrbrem.lid.lidE/E", H5P_DEFAULT);
+        dataspace = H5Dget_space(dataset);
+        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
+        col_E.resize(dims[0]);
+        err = H5Dread(dataset, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                static_cast<void*>(col_E.data()));
+        H5Sclose(dataspace);
+        H5Dclose(dataset);
+        std::vector<std::int32_t> col_cycle; /* cycle column */
+        dataset = H5Dopen(file, "/rec.trk.cosmic.tracks.mrbrem.lid.lidE/cycle", H5P_DEFAULT);
+        dataspace = H5Dget_space(dataset);
+        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
+        col_cycle.resize(dims[0]);
+        err = H5Dread(dataset, H5T_NATIVE_INT32, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                static_cast<void*>(col_cycle.data()));
+        H5Sclose(dataspace);
+        H5Dclose(dataset);
+        std::vector<float> col_depE; /* depE column */
+        dataset = H5Dopen(file, "/rec.trk.cosmic.tracks.mrbrem.lid.lidE/depE", H5P_DEFAULT);
+        dataspace = H5Dget_space(dataset);
+        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
+        col_depE.resize(dims[0]);
+        err = H5Dread(dataset, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                static_cast<void*>(col_depE.data()));
+        H5Sclose(dataspace);
+        H5Dclose(dataset);
+        std::vector<float> col_hadE; /* hadE column */
+        dataset = H5Dopen(file, "/rec.trk.cosmic.tracks.mrbrem.lid.lidE/hadE", H5P_DEFAULT);
+        dataspace = H5Dget_space(dataset);
+        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
+        col_hadE.resize(dims[0]);
+        err = H5Dread(dataset, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                static_cast<void*>(col_hadE.data()));
+        H5Sclose(dataspace);
+        H5Dclose(dataset);
+        std::vector<std::uint32_t> col_rec_trk_cosmic_tracks_mrbrem_idx; /* rec.trk.cosmic.tracks.mrbrem_idx column */
+        dataset = H5Dopen(file, "/rec.trk.cosmic.tracks.mrbrem.lid.lidE/rec.trk.cosmic.tracks.mrbrem_idx", H5P_DEFAULT);
+        dataspace = H5Dget_space(dataset);
+        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
+        col_rec_trk_cosmic_tracks_mrbrem_idx.resize(dims[0]);
+        err = H5Dread(dataset, H5T_NATIVE_UINT32, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                static_cast<void*>(col_rec_trk_cosmic_tracks_mrbrem_idx.data()));
+        H5Sclose(dataspace);
+        H5Dclose(dataset);
+        std::vector<std::uint32_t> col_rec_trk_cosmic_tracks_idx; /* rec.trk.cosmic.tracks_idx column */
+        dataset = H5Dopen(file, "/rec.trk.cosmic.tracks.mrbrem.lid.lidE/rec.trk.cosmic.tracks_idx", H5P_DEFAULT);
+        dataspace = H5Dget_space(dataset);
+        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
+        col_rec_trk_cosmic_tracks_idx.resize(dims[0]);
+        err = H5Dread(dataset, H5T_NATIVE_UINT32, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                static_cast<void*>(col_rec_trk_cosmic_tracks_idx.data()));
+        H5Sclose(dataspace);
+        H5Dclose(dataset);
+        std::vector<float> col_shwE; /* shwE column */
+        dataset = H5Dopen(file, "/rec.trk.cosmic.tracks.mrbrem.lid.lidE/shwE", H5P_DEFAULT);
+        dataspace = H5Dget_space(dataset);
+        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
+        col_shwE.resize(dims[0]);
+        err = H5Dread(dataset, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                static_cast<void*>(col_shwE.data()));
+        H5Sclose(dataspace);
+        H5Dclose(dataset);
+        std::vector<std::uint16_t> col_subevt; /* subevt column */
+        dataset = H5Dopen(file, "/rec.trk.cosmic.tracks.mrbrem.lid.lidE/subevt", H5P_DEFAULT);
+        dataspace = H5Dget_space(dataset);
+        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
+        col_subevt.resize(dims[0]);
+        err = H5Dread(dataset, H5T_NATIVE_UINT16, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                static_cast<void*>(col_subevt.data()));
+        H5Sclose(dataspace);
+        H5Dclose(dataset);
+        
+
+        for(uint64_t i = 0; i < dims[0]; i++) {
+            content[i].E = col_E[i];
+            content[i].cycle = col_cycle[i];
+            content[i].depE = col_depE[i];
+            content[i].hadE = col_hadE[i];
+            content[i].rec_trk_cosmic_tracks_mrbrem_idx = col_rec_trk_cosmic_tracks_mrbrem_idx[i];
+            content[i].rec_trk_cosmic_tracks_idx = col_rec_trk_cosmic_tracks_idx[i];
+            content[i].shwE = col_shwE[i];
+            content[i].subevt = col_subevt[i];
+            
+        }
+
+        return { col_run, col_subrun, col_evt, content };
+    }
+
+    static std::tuple<
+            std::vector<unsigned>,
+            std::vector<unsigned>,
+            std::vector<unsigned>,
+            std::vector<rec_trk_cosmic_tracks_mrbrem_lid_lidE>
+           > from_hdf5(const std::string& filename) {
+        hid_t file_id = H5Fopen(filename.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT);
+        return from_hdf5(file_id);
+    }
+
+    private:
+
+    static void _read_indices(hid_t file,
+                              std::vector<unsigned>& runs,
+                              std::vector<unsigned>& subruns,
+                              std::vector<unsigned>& events)
+    {
+        hid_t dataset;
+        hid_t dataspace;
+        hsize_t dims[2];
+        herr_t err;
+        int ndims;
+        /* column for run indices */
+        dataset = H5Dopen(file, "/rec.trk.cosmic.tracks.mrbrem.lid.lidE/run", H5P_DEFAULT);
+        dataspace = H5Dget_space(dataset);
+        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
+        runs.resize(dims[0]);
+        err = H5Dread(dataset, H5T_NATIVE_UINT, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                static_cast<void*>(runs.data()));
+        H5Sclose(dataspace);
+        H5Dclose(dataset);
+        /* column for subrun indices */
+        dataset = H5Dopen(file, "/rec.trk.cosmic.tracks.mrbrem.lid.lidE/subrun", H5P_DEFAULT);
+        dataspace = H5Dget_space(dataset);
+        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
+        subruns.resize(dims[0]);
+        err = H5Dread(dataset, H5T_NATIVE_UINT, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                static_cast<void*>(subruns.data()));
+        H5Sclose(dataspace);
+        H5Dclose(dataset);
+        /* column for event indices */
+        dataset = H5Dopen(file, "/rec.trk.cosmic.tracks.mrbrem.lid.lidE/evt", H5P_DEFAULT);
+        dataspace = H5Dget_space(dataset);
+        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
+        events.resize(dims[0]);
+        err = H5Dread(dataset, H5T_NATIVE_UINT, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                static_cast<void*>(events.data()));
+        H5Sclose(dataspace);
+        H5Dclose(dataset);
     }
 };
 

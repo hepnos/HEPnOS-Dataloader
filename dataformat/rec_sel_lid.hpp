@@ -6,6 +6,7 @@
 #ifndef __REC_SEL_LID_HPP_
 #define __REC_SEL_LID_HPP_
 
+#include <tuple>
 #include <string>
 #include <vector>
 #include <cstdint>
@@ -63,6 +64,11 @@ struct rec_sel_lid {
         hsize_t dims[2];
         herr_t err;
         int ndims;
+
+        std::vector<unsigned> col_run;
+        std::vector<unsigned> col_subrun;
+        std::vector<unsigned> col_evt;
+        _read_indices(file, col_run, col_subrun, col_evt);
 
         std::vector<float> col_ann; /* ann column */
         dataset = H5Dopen(file, "/rec.sel.lid/ann", H5P_DEFAULT);
@@ -129,37 +135,6 @@ struct rec_sel_lid {
         H5Dclose(dataset);
         
 
-        /* column for run indices */
-        std::vector<unsigned> col_run;
-        dataset = H5Dopen(file, "/rec.sel.lid/run", H5P_DEFAULT);
-        dataspace = H5Dget_space(dataset);
-        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
-        col_run.resize(dims[0]);
-        err = H5Dread(dataset, H5T_NATIVE_UINT, H5S_ALL, H5S_ALL, H5P_DEFAULT,
-                static_cast<void*>(col_run.data()));
-        H5Sclose(dataspace);
-        H5Dclose(dataset);
-        /* column for subrun indices */
-        std::vector<unsigned> col_subrun;
-        dataset = H5Dopen(file, "/rec.sel.lid/subrun", H5P_DEFAULT);
-        dataspace = H5Dget_space(dataset);
-        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
-        col_subrun.resize(dims[0]);
-        err = H5Dread(dataset, H5T_NATIVE_UINT, H5S_ALL, H5S_ALL, H5P_DEFAULT,
-                static_cast<void*>(col_subrun.data()));
-        H5Sclose(dataspace);
-        H5Dclose(dataset);
-        /* column for event indices */
-        std::vector<unsigned> col_evt;
-        dataset = H5Dopen(file, "/rec.sel.lid/evt", H5P_DEFAULT);
-        dataspace = H5Dget_space(dataset);
-        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
-        col_evt.resize(dims[0]);
-        err = H5Dread(dataset, H5T_NATIVE_UINT, H5S_ALL, H5S_ALL, H5P_DEFAULT,
-                static_cast<void*>(col_evt.data()));
-        H5Sclose(dataspace);
-        H5Dclose(dataset);
-
         for(uint64_t i = 0; i < dims[0]; i++) {
             current.ann = col_ann[i];
             current.anne = col_anne[i];
@@ -177,6 +152,156 @@ struct rec_sel_lid {
     static void from_hdf5(const std::string& filename, F&& callback) {
         hid_t file_id = H5Fopen(filename.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT);
         from_hdf5(file_id, std::forward<F>(callback));
+    }
+
+    static std::tuple<
+            std::vector<unsigned>,
+            std::vector<unsigned>,
+            std::vector<unsigned>,
+            std::vector<rec_sel_lid>
+           > from_hdf5(hid_t file) {
+        hid_t dataset;
+        hid_t dataspace;
+        hsize_t dims[2];
+        herr_t err;
+        int ndims;
+        std::vector<rec_sel_lid> content;
+        std::vector<unsigned> col_run;
+        std::vector<unsigned> col_subrun;
+        std::vector<unsigned> col_evt;
+
+        _read_indices(file, col_run, col_subrun, col_evt);
+
+        content.resize(col_run.size());
+
+        std::vector<float> col_ann; /* ann column */
+        dataset = H5Dopen(file, "/rec.sel.lid/ann", H5P_DEFAULT);
+        dataspace = H5Dget_space(dataset);
+        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
+        col_ann.resize(dims[0]);
+        err = H5Dread(dataset, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                static_cast<void*>(col_ann.data()));
+        H5Sclose(dataspace);
+        H5Dclose(dataset);
+        std::vector<float> col_anne; /* anne column */
+        dataset = H5Dopen(file, "/rec.sel.lid/anne", H5P_DEFAULT);
+        dataspace = H5Dget_space(dataset);
+        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
+        col_anne.resize(dims[0]);
+        err = H5Dread(dataset, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                static_cast<void*>(col_anne.data()));
+        H5Sclose(dataspace);
+        H5Dclose(dataset);
+        std::vector<float> col_annecos; /* annecos column */
+        dataset = H5Dopen(file, "/rec.sel.lid/annecos", H5P_DEFAULT);
+        dataspace = H5Dget_space(dataset);
+        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
+        col_annecos.resize(dims[0]);
+        err = H5Dread(dataset, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                static_cast<void*>(col_annecos.data()));
+        H5Sclose(dataspace);
+        H5Dclose(dataset);
+        std::vector<float> col_annepi0; /* annepi0 column */
+        dataset = H5Dopen(file, "/rec.sel.lid/annepi0", H5P_DEFAULT);
+        dataspace = H5Dget_space(dataset);
+        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
+        col_annepi0.resize(dims[0]);
+        err = H5Dread(dataset, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                static_cast<void*>(col_annepi0.data()));
+        H5Sclose(dataspace);
+        H5Dclose(dataset);
+        std::vector<std::int32_t> col_cycle; /* cycle column */
+        dataset = H5Dopen(file, "/rec.sel.lid/cycle", H5P_DEFAULT);
+        dataspace = H5Dget_space(dataset);
+        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
+        col_cycle.resize(dims[0]);
+        err = H5Dread(dataset, H5T_NATIVE_INT32, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                static_cast<void*>(col_cycle.data()));
+        H5Sclose(dataspace);
+        H5Dclose(dataset);
+        std::vector<float> col_rnn; /* rnn column */
+        dataset = H5Dopen(file, "/rec.sel.lid/rnn", H5P_DEFAULT);
+        dataspace = H5Dget_space(dataset);
+        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
+        col_rnn.resize(dims[0]);
+        err = H5Dread(dataset, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                static_cast<void*>(col_rnn.data()));
+        H5Sclose(dataspace);
+        H5Dclose(dataset);
+        std::vector<std::uint16_t> col_subevt; /* subevt column */
+        dataset = H5Dopen(file, "/rec.sel.lid/subevt", H5P_DEFAULT);
+        dataspace = H5Dget_space(dataset);
+        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
+        col_subevt.resize(dims[0]);
+        err = H5Dread(dataset, H5T_NATIVE_UINT16, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                static_cast<void*>(col_subevt.data()));
+        H5Sclose(dataspace);
+        H5Dclose(dataset);
+        
+
+        for(uint64_t i = 0; i < dims[0]; i++) {
+            content[i].ann = col_ann[i];
+            content[i].anne = col_anne[i];
+            content[i].annecos = col_annecos[i];
+            content[i].annepi0 = col_annepi0[i];
+            content[i].cycle = col_cycle[i];
+            content[i].rnn = col_rnn[i];
+            content[i].subevt = col_subevt[i];
+            
+        }
+
+        return { col_run, col_subrun, col_evt, content };
+    }
+
+    static std::tuple<
+            std::vector<unsigned>,
+            std::vector<unsigned>,
+            std::vector<unsigned>,
+            std::vector<rec_sel_lid>
+           > from_hdf5(const std::string& filename) {
+        hid_t file_id = H5Fopen(filename.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT);
+        return from_hdf5(file_id);
+    }
+
+    private:
+
+    static void _read_indices(hid_t file,
+                              std::vector<unsigned>& runs,
+                              std::vector<unsigned>& subruns,
+                              std::vector<unsigned>& events)
+    {
+        hid_t dataset;
+        hid_t dataspace;
+        hsize_t dims[2];
+        herr_t err;
+        int ndims;
+        /* column for run indices */
+        dataset = H5Dopen(file, "/rec.sel.lid/run", H5P_DEFAULT);
+        dataspace = H5Dget_space(dataset);
+        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
+        runs.resize(dims[0]);
+        err = H5Dread(dataset, H5T_NATIVE_UINT, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                static_cast<void*>(runs.data()));
+        H5Sclose(dataspace);
+        H5Dclose(dataset);
+        /* column for subrun indices */
+        dataset = H5Dopen(file, "/rec.sel.lid/subrun", H5P_DEFAULT);
+        dataspace = H5Dget_space(dataset);
+        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
+        subruns.resize(dims[0]);
+        err = H5Dread(dataset, H5T_NATIVE_UINT, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                static_cast<void*>(subruns.data()));
+        H5Sclose(dataspace);
+        H5Dclose(dataset);
+        /* column for event indices */
+        dataset = H5Dopen(file, "/rec.sel.lid/evt", H5P_DEFAULT);
+        dataspace = H5Dget_space(dataset);
+        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
+        events.resize(dims[0]);
+        err = H5Dread(dataset, H5T_NATIVE_UINT, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                static_cast<void*>(events.data()));
+        H5Sclose(dataspace);
+        H5Dclose(dataset);
     }
 };
 

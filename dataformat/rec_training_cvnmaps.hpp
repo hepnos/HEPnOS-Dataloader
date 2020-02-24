@@ -6,6 +6,7 @@
 #ifndef __REC_TRAINING_CVNMAPS_HPP_
 #define __REC_TRAINING_CVNMAPS_HPP_
 
+#include <tuple>
 #include <string>
 #include <vector>
 #include <cstdint>
@@ -33,9 +34,7 @@ struct rec_training_cvnmaps {
     std::uint32_t nplanes; /* nplanes column */
     std::uint32_t rec_training_cvnmaps_idx; /* rec.training.cvnmaps_idx column */
     std::uint16_t subevt; /* subevt column */
-    std::uint8_t cvnlabmap; /* cvnlabmap column */
     std::uint8_t cvnmap; /* cvnmap column */
-    std::uint8_t cvnobjmap; /* cvnobjmap column */
     
     /**
      * Serialization function for Boost
@@ -59,9 +58,7 @@ struct rec_training_cvnmaps {
         ar & nplanes;
         ar & rec_training_cvnmaps_idx;
         ar & subevt;
-        ar & cvnlabmap;
         ar & cvnmap;
-        ar & cvnobjmap;
         
     }
 
@@ -83,6 +80,11 @@ struct rec_training_cvnmaps {
         hsize_t dims[2];
         herr_t err;
         int ndims;
+
+        std::vector<unsigned> col_run;
+        std::vector<unsigned> col_subrun;
+        std::vector<unsigned> col_evt;
+        _read_indices(file, col_run, col_subrun, col_evt);
 
         std::vector<std::int32_t> col_cycle; /* cycle column */
         dataset = H5Dopen(file, "/rec.training.cvnmaps/cycle", H5P_DEFAULT);
@@ -210,15 +212,6 @@ struct rec_training_cvnmaps {
                 static_cast<void*>(col_subevt.data()));
         H5Sclose(dataspace);
         H5Dclose(dataset);
-        std::vector<std::uint8_t> col_cvnlabmap; /* cvnlabmap column */
-        dataset = H5Dopen(file, "/rec.training.cvnmaps/cvnlabmap", H5P_DEFAULT);
-        dataspace = H5Dget_space(dataset);
-        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
-        col_cvnlabmap.resize(dims[0]);
-        err = H5Dread(dataset, H5T_NATIVE_UINT8, H5S_ALL, H5S_ALL, H5P_DEFAULT,
-                static_cast<void*>(col_cvnlabmap.data()));
-        H5Sclose(dataspace);
-        H5Dclose(dataset);
         std::vector<std::uint8_t> col_cvnmap; /* cvnmap column */
         dataset = H5Dopen(file, "/rec.training.cvnmaps/cvnmap", H5P_DEFAULT);
         dataspace = H5Dget_space(dataset);
@@ -228,47 +221,7 @@ struct rec_training_cvnmaps {
                 static_cast<void*>(col_cvnmap.data()));
         H5Sclose(dataspace);
         H5Dclose(dataset);
-        std::vector<std::uint8_t> col_cvnobjmap; /* cvnobjmap column */
-        dataset = H5Dopen(file, "/rec.training.cvnmaps/cvnobjmap", H5P_DEFAULT);
-        dataspace = H5Dget_space(dataset);
-        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
-        col_cvnobjmap.resize(dims[0]);
-        err = H5Dread(dataset, H5T_NATIVE_UINT8, H5S_ALL, H5S_ALL, H5P_DEFAULT,
-                static_cast<void*>(col_cvnobjmap.data()));
-        H5Sclose(dataspace);
-        H5Dclose(dataset);
         
-
-        /* column for run indices */
-        std::vector<unsigned> col_run;
-        dataset = H5Dopen(file, "/rec.training.cvnmaps/run", H5P_DEFAULT);
-        dataspace = H5Dget_space(dataset);
-        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
-        col_run.resize(dims[0]);
-        err = H5Dread(dataset, H5T_NATIVE_UINT, H5S_ALL, H5S_ALL, H5P_DEFAULT,
-                static_cast<void*>(col_run.data()));
-        H5Sclose(dataspace);
-        H5Dclose(dataset);
-        /* column for subrun indices */
-        std::vector<unsigned> col_subrun;
-        dataset = H5Dopen(file, "/rec.training.cvnmaps/subrun", H5P_DEFAULT);
-        dataspace = H5Dget_space(dataset);
-        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
-        col_subrun.resize(dims[0]);
-        err = H5Dread(dataset, H5T_NATIVE_UINT, H5S_ALL, H5S_ALL, H5P_DEFAULT,
-                static_cast<void*>(col_subrun.data()));
-        H5Sclose(dataspace);
-        H5Dclose(dataset);
-        /* column for event indices */
-        std::vector<unsigned> col_evt;
-        dataset = H5Dopen(file, "/rec.training.cvnmaps/evt", H5P_DEFAULT);
-        dataspace = H5Dget_space(dataset);
-        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
-        col_evt.resize(dims[0]);
-        err = H5Dread(dataset, H5T_NATIVE_UINT, H5S_ALL, H5S_ALL, H5P_DEFAULT,
-                static_cast<void*>(col_evt.data()));
-        H5Sclose(dataspace);
-        H5Dclose(dataset);
 
         for(uint64_t i = 0; i < dims[0]; i++) {
             current.cycle = col_cycle[i];
@@ -285,9 +238,7 @@ struct rec_training_cvnmaps {
             current.nplanes = col_nplanes[i];
             current.rec_training_cvnmaps_idx = col_rec_training_cvnmaps_idx[i];
             current.subevt = col_subevt[i];
-            current.cvnlabmap = col_cvnlabmap[i];
             current.cvnmap = col_cvnmap[i];
-            current.cvnobjmap = col_cvnobjmap[i];
             
             callback(col_run[i], col_subrun[i], col_evt[i], current);
         }
@@ -297,6 +248,236 @@ struct rec_training_cvnmaps {
     static void from_hdf5(const std::string& filename, F&& callback) {
         hid_t file_id = H5Fopen(filename.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT);
         from_hdf5(file_id, std::forward<F>(callback));
+    }
+
+    static std::tuple<
+            std::vector<unsigned>,
+            std::vector<unsigned>,
+            std::vector<unsigned>,
+            std::vector<rec_training_cvnmaps>
+           > from_hdf5(hid_t file) {
+        hid_t dataset;
+        hid_t dataspace;
+        hsize_t dims[2];
+        herr_t err;
+        int ndims;
+        std::vector<rec_training_cvnmaps> content;
+        std::vector<unsigned> col_run;
+        std::vector<unsigned> col_subrun;
+        std::vector<unsigned> col_evt;
+
+        _read_indices(file, col_run, col_subrun, col_evt);
+
+        content.resize(col_run.size());
+
+        std::vector<std::int32_t> col_cycle; /* cycle column */
+        dataset = H5Dopen(file, "/rec.training.cvnmaps/cycle", H5P_DEFAULT);
+        dataspace = H5Dget_space(dataset);
+        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
+        col_cycle.resize(dims[0]);
+        err = H5Dread(dataset, H5T_NATIVE_INT32, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                static_cast<void*>(col_cycle.data()));
+        H5Sclose(dataspace);
+        H5Dclose(dataset);
+        std::vector<std::uint32_t> col_firstcellx; /* firstcellx column */
+        dataset = H5Dopen(file, "/rec.training.cvnmaps/firstcellx", H5P_DEFAULT);
+        dataspace = H5Dget_space(dataset);
+        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
+        col_firstcellx.resize(dims[0]);
+        err = H5Dread(dataset, H5T_NATIVE_UINT32, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                static_cast<void*>(col_firstcellx.data()));
+        H5Sclose(dataspace);
+        H5Dclose(dataset);
+        std::vector<std::uint32_t> col_firstcelly; /* firstcelly column */
+        dataset = H5Dopen(file, "/rec.training.cvnmaps/firstcelly", H5P_DEFAULT);
+        dataspace = H5Dget_space(dataset);
+        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
+        col_firstcelly.resize(dims[0]);
+        err = H5Dread(dataset, H5T_NATIVE_UINT32, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                static_cast<void*>(col_firstcelly.data()));
+        H5Sclose(dataspace);
+        H5Dclose(dataset);
+        std::vector<std::uint32_t> col_firstplane; /* firstplane column */
+        dataset = H5Dopen(file, "/rec.training.cvnmaps/firstplane", H5P_DEFAULT);
+        dataspace = H5Dget_space(dataset);
+        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
+        col_firstplane.resize(dims[0]);
+        err = H5Dread(dataset, H5T_NATIVE_UINT32, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                static_cast<void*>(col_firstplane.data()));
+        H5Sclose(dataspace);
+        H5Dclose(dataset);
+        std::vector<float> col_hitfracx; /* hitfracx column */
+        dataset = H5Dopen(file, "/rec.training.cvnmaps/hitfracx", H5P_DEFAULT);
+        dataspace = H5Dget_space(dataset);
+        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
+        col_hitfracx.resize(dims[0]);
+        err = H5Dread(dataset, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                static_cast<void*>(col_hitfracx.data()));
+        H5Sclose(dataspace);
+        H5Dclose(dataset);
+        std::vector<float> col_hitfracy; /* hitfracy column */
+        dataset = H5Dopen(file, "/rec.training.cvnmaps/hitfracy", H5P_DEFAULT);
+        dataspace = H5Dget_space(dataset);
+        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
+        col_hitfracy.resize(dims[0]);
+        err = H5Dread(dataset, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                static_cast<void*>(col_hitfracy.data()));
+        H5Sclose(dataspace);
+        H5Dclose(dataset);
+        std::vector<std::uint32_t> col_lastcellx; /* lastcellx column */
+        dataset = H5Dopen(file, "/rec.training.cvnmaps/lastcellx", H5P_DEFAULT);
+        dataspace = H5Dget_space(dataset);
+        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
+        col_lastcellx.resize(dims[0]);
+        err = H5Dread(dataset, H5T_NATIVE_UINT32, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                static_cast<void*>(col_lastcellx.data()));
+        H5Sclose(dataspace);
+        H5Dclose(dataset);
+        std::vector<std::uint32_t> col_lastcelly; /* lastcelly column */
+        dataset = H5Dopen(file, "/rec.training.cvnmaps/lastcelly", H5P_DEFAULT);
+        dataspace = H5Dget_space(dataset);
+        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
+        col_lastcelly.resize(dims[0]);
+        err = H5Dread(dataset, H5T_NATIVE_UINT32, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                static_cast<void*>(col_lastcelly.data()));
+        H5Sclose(dataspace);
+        H5Dclose(dataset);
+        std::vector<std::uint32_t> col_lastplane; /* lastplane column */
+        dataset = H5Dopen(file, "/rec.training.cvnmaps/lastplane", H5P_DEFAULT);
+        dataspace = H5Dget_space(dataset);
+        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
+        col_lastplane.resize(dims[0]);
+        err = H5Dread(dataset, H5T_NATIVE_UINT32, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                static_cast<void*>(col_lastplane.data()));
+        H5Sclose(dataspace);
+        H5Dclose(dataset);
+        std::vector<std::uint32_t> col_ncells; /* ncells column */
+        dataset = H5Dopen(file, "/rec.training.cvnmaps/ncells", H5P_DEFAULT);
+        dataspace = H5Dget_space(dataset);
+        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
+        col_ncells.resize(dims[0]);
+        err = H5Dread(dataset, H5T_NATIVE_UINT32, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                static_cast<void*>(col_ncells.data()));
+        H5Sclose(dataspace);
+        H5Dclose(dataset);
+        std::vector<std::uint32_t> col_nchan; /* nchan column */
+        dataset = H5Dopen(file, "/rec.training.cvnmaps/nchan", H5P_DEFAULT);
+        dataspace = H5Dget_space(dataset);
+        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
+        col_nchan.resize(dims[0]);
+        err = H5Dread(dataset, H5T_NATIVE_UINT32, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                static_cast<void*>(col_nchan.data()));
+        H5Sclose(dataspace);
+        H5Dclose(dataset);
+        std::vector<std::uint32_t> col_nplanes; /* nplanes column */
+        dataset = H5Dopen(file, "/rec.training.cvnmaps/nplanes", H5P_DEFAULT);
+        dataspace = H5Dget_space(dataset);
+        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
+        col_nplanes.resize(dims[0]);
+        err = H5Dread(dataset, H5T_NATIVE_UINT32, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                static_cast<void*>(col_nplanes.data()));
+        H5Sclose(dataspace);
+        H5Dclose(dataset);
+        std::vector<std::uint32_t> col_rec_training_cvnmaps_idx; /* rec.training.cvnmaps_idx column */
+        dataset = H5Dopen(file, "/rec.training.cvnmaps/rec.training.cvnmaps_idx", H5P_DEFAULT);
+        dataspace = H5Dget_space(dataset);
+        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
+        col_rec_training_cvnmaps_idx.resize(dims[0]);
+        err = H5Dread(dataset, H5T_NATIVE_UINT32, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                static_cast<void*>(col_rec_training_cvnmaps_idx.data()));
+        H5Sclose(dataspace);
+        H5Dclose(dataset);
+        std::vector<std::uint16_t> col_subevt; /* subevt column */
+        dataset = H5Dopen(file, "/rec.training.cvnmaps/subevt", H5P_DEFAULT);
+        dataspace = H5Dget_space(dataset);
+        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
+        col_subevt.resize(dims[0]);
+        err = H5Dread(dataset, H5T_NATIVE_UINT16, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                static_cast<void*>(col_subevt.data()));
+        H5Sclose(dataspace);
+        H5Dclose(dataset);
+        std::vector<std::uint8_t> col_cvnmap; /* cvnmap column */
+        dataset = H5Dopen(file, "/rec.training.cvnmaps/cvnmap", H5P_DEFAULT);
+        dataspace = H5Dget_space(dataset);
+        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
+        col_cvnmap.resize(dims[0]);
+        err = H5Dread(dataset, H5T_NATIVE_UINT8, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                static_cast<void*>(col_cvnmap.data()));
+        H5Sclose(dataspace);
+        H5Dclose(dataset);
+        
+
+        for(uint64_t i = 0; i < dims[0]; i++) {
+            content[i].cycle = col_cycle[i];
+            content[i].firstcellx = col_firstcellx[i];
+            content[i].firstcelly = col_firstcelly[i];
+            content[i].firstplane = col_firstplane[i];
+            content[i].hitfracx = col_hitfracx[i];
+            content[i].hitfracy = col_hitfracy[i];
+            content[i].lastcellx = col_lastcellx[i];
+            content[i].lastcelly = col_lastcelly[i];
+            content[i].lastplane = col_lastplane[i];
+            content[i].ncells = col_ncells[i];
+            content[i].nchan = col_nchan[i];
+            content[i].nplanes = col_nplanes[i];
+            content[i].rec_training_cvnmaps_idx = col_rec_training_cvnmaps_idx[i];
+            content[i].subevt = col_subevt[i];
+            content[i].cvnmap = col_cvnmap[i];
+            
+        }
+
+        return { col_run, col_subrun, col_evt, content };
+    }
+
+    static std::tuple<
+            std::vector<unsigned>,
+            std::vector<unsigned>,
+            std::vector<unsigned>,
+            std::vector<rec_training_cvnmaps>
+           > from_hdf5(const std::string& filename) {
+        hid_t file_id = H5Fopen(filename.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT);
+        return from_hdf5(file_id);
+    }
+
+    private:
+
+    static void _read_indices(hid_t file,
+                              std::vector<unsigned>& runs,
+                              std::vector<unsigned>& subruns,
+                              std::vector<unsigned>& events)
+    {
+        hid_t dataset;
+        hid_t dataspace;
+        hsize_t dims[2];
+        herr_t err;
+        int ndims;
+        /* column for run indices */
+        dataset = H5Dopen(file, "/rec.training.cvnmaps/run", H5P_DEFAULT);
+        dataspace = H5Dget_space(dataset);
+        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
+        runs.resize(dims[0]);
+        err = H5Dread(dataset, H5T_NATIVE_UINT, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                static_cast<void*>(runs.data()));
+        H5Sclose(dataspace);
+        H5Dclose(dataset);
+        /* column for subrun indices */
+        dataset = H5Dopen(file, "/rec.training.cvnmaps/subrun", H5P_DEFAULT);
+        dataspace = H5Dget_space(dataset);
+        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
+        subruns.resize(dims[0]);
+        err = H5Dread(dataset, H5T_NATIVE_UINT, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                static_cast<void*>(subruns.data()));
+        H5Sclose(dataspace);
+        H5Dclose(dataset);
+        /* column for event indices */
+        dataset = H5Dopen(file, "/rec.training.cvnmaps/evt", H5P_DEFAULT);
+        dataspace = H5Dget_space(dataset);
+        ndims = H5Sget_simple_extent_dims(dataspace, dims, NULL);
+        events.resize(dims[0]);
+        err = H5Dread(dataset, H5T_NATIVE_UINT, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                static_cast<void*>(events.data()));
+        H5Sclose(dataspace);
+        H5Dclose(dataset);
     }
 };
 

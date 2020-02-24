@@ -1,12 +1,3 @@
-#include <neutrino.hpp>
-#include <neutrino_beam.hpp>
-#include <neutrino_genVersion.hpp>
-#include <neutrino_michel.hpp>
-#include <neutrino_prim.hpp>
-#include <neutrino_prim_daughterlist.hpp>
-#include <neutrino_rwgt_genie.hpp>
-#include <neutrino_rwgt_ppfx.hpp>
-#include <neutrino_rwgt_ppfx_vuniv.hpp>
 #include <rec_energy_nue.hpp>
 #include <rec_energy_nue_lid.hpp>
 #include <rec_energy_numu.hpp>
@@ -98,7 +89,6 @@
 #include <rec_training_cvnfeatures_output.hpp>
 #include <rec_training_cvnmaps.hpp>
 #include <rec_training_slicemaps.hpp>
-#include <rec_training_trainingdata.hpp>
 #include <rec_trk_bpf.hpp>
 #include <rec_trk_bpf_tracks.hpp>
 #include <rec_trk_bpf_tracks_me.hpp>
@@ -551,7 +541,6 @@
 #include <rec_vtx_elastic_fuzzyk_png_cvnpart2View.hpp>
 #include <rec_vtx_elastic_fuzzyk_png_cvnpart2ViewBal.hpp>
 #include <rec_vtx_elastic_fuzzyk_png_cvnpartBal.hpp>
-#include <rec_vtx_elastic_fuzzyk_png_prongtrainingdata.hpp>
 #include <rec_vtx_elastic_fuzzyk_png_regcvn.hpp>
 #include <rec_vtx_elastic_fuzzyk_png_shwlid.hpp>
 #include <rec_vtx_elastic_fuzzyk_png_shwlid_lid.hpp>
@@ -659,7 +648,6 @@
 #include <rec_vtx_hough_fuzzyk_png_cvnpart2View.hpp>
 #include <rec_vtx_hough_fuzzyk_png_cvnpart2ViewBal.hpp>
 #include <rec_vtx_hough_fuzzyk_png_cvnpartBal.hpp>
-#include <rec_vtx_hough_fuzzyk_png_prongtrainingdata.hpp>
 #include <rec_vtx_hough_fuzzyk_png_regcvn.hpp>
 #include <rec_vtx_hough_fuzzyk_png_shwlid.hpp>
 #include <rec_vtx_hough_fuzzyk_png_shwlid_lid.hpp>
