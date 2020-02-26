@@ -138,7 +138,7 @@ process_table(hepnos::SubRun& sr, hid_t hdf_file, hepnos::WriteBatch& wb, std::o
     std::vector<unsigned> subruns;
     std::vector<T> table;
 
-    std::cerr << "reading from HDF5 file... ";
+    std::cerr << "Reading from HDF5 file... ";
     std::tie(runs, subruns, events, table) = T::from_hdf5(hdf_file);
     std::cerr << "done" << std::endl;
 
@@ -150,7 +150,6 @@ process_table(hepnos::SubRun& sr, hid_t hdf_file, hepnos::WriteBatch& wb, std::o
         if (batch_end != events.cend())
             batch_end = batch_end + 1;
         auto ev = sr.createEvent(wb, *batch_begin);
-        std::cerr << "created event " << *batch_begin << std::endl;
         size_t b_idx = batch_begin - events.cbegin();
         size_t e_idx = batch_end - events.cbegin();
         ev.store(wb, "a", table, b_idx, e_idx);
@@ -283,7 +282,7 @@ work(int argc, char* argv[])
 
     { // scope to wait for AsyncEngine and WriteBatch to flush their data
         hepnos::AsyncEngine asyncEngine(datastore, 1);
-        hepnos::WriteBatch writeBatch(datastore, asyncEngine);
+        hepnos::WriteBatch writeBatch(datastore, asyncEngine, 1000);
 
         if (debugfile) *debugfile << "Created data store" << std::endl;
         hepnos::DataSet dataset = root.createDataSet("NOvA");
