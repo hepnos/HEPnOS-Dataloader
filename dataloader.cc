@@ -56,10 +56,10 @@
 using namespace std;
 
 template <typename T, std::size_t N>
-void process_file(std::array<char, N> const& fname, hepnos::DataSet& dataset, hepnos::WriteBatch& wb);
+void process_file(std::array<char, N> const& fname, hepnos::DataSet& dataset, hepnos::WriteBatch& wb, std::ostream* debugfile);
 
 template <typename T>
-void process_table(hepnos::SubRun& sr, hid_t hdf_file, hepnos::WriteBatch& wb);
+void process_table(hepnos::SubRun& sr, hid_t hdf_file, hepnos::WriteBatch& wb, std::ostream* debugfile);
 
 template <size_t N>
 std::array<char, N> string_to_array(std::string s);
@@ -115,26 +115,32 @@ getNum(std::string fname, std::regex r)
 
 template <typename T, std::size_t N>
     void
-process_file(std::array<char, N> const& f, hepnos::DataSet& dataset, hepnos::WriteBatch& wb)
+process_file(std::array<char, N> const& f, hepnos::DataSet& dataset, hepnos::WriteBatch& wb, std::ostream* debugfile)
 {
     auto const my_end = std::find(f.begin(), f.end(), '\0');
     std::string fname(f.begin(), my_end);
+    std::cerr << "Opening HDF5 file " << fname << std::endl;
     hid_t hdf_file = H5Fopen(fname.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT);
+    std::cerr << "Creating Run" << std::endl;
     auto r = dataset.createRun(wb, getNum(fname, std::regex("(_r000)([0-9]{5})")));
+    std::cerr << "Creating SubRun" << std::endl;
     auto sr = r.createSubRun(wb, getNum(fname, std::regex("(_s)([0-9]{2})")));
-    process_table<T>(sr, hdf_file, wb);
+    std::cerr << "Created run " << r.number() << " subrun " << sr.number() << std::endl;
+    process_table<T>(sr, hdf_file, wb, debugfile);
 }
 
 template <typename T>
     void
-process_table(hepnos::SubRun& sr, hid_t hdf_file, hepnos::WriteBatch& wb)
+process_table(hepnos::SubRun& sr, hid_t hdf_file, hepnos::WriteBatch& wb, std::ostream* debugfile)
 {
     std::vector<unsigned> runs;
     std::vector<unsigned> events;
     std::vector<unsigned> subruns;
     std::vector<T> table;
 
+    std::cerr << "reading from HDF5 file... ";
     std::tie(runs, subruns, events, table) = T::from_hdf5(hdf_file);
+    std::cerr << "done" << std::endl;
 
     auto batch_begin = events.cbegin();
     auto checkeve = [](uint64_t i, uint64_t j) { return (i != j); };
@@ -144,6 +150,7 @@ process_table(hepnos::SubRun& sr, hid_t hdf_file, hepnos::WriteBatch& wb)
         if (batch_end != events.cend())
             batch_end = batch_end + 1;
         auto ev = sr.createEvent(wb, *batch_begin);
+        std::cerr << "created event " << *batch_begin << std::endl;
         size_t b_idx = batch_begin - events.cbegin();
         size_t e_idx = batch_end - events.cbegin();
         ev.store(wb, "a", table, b_idx, e_idx);
@@ -158,9 +165,12 @@ process_subrun(Block* block,
         diy::Master::ProxyWithLink const& /* cp */,
         int,
         hepnos::DataSet& ds,
-        hepnos::WriteBatch& wb)
+        hepnos::WriteBatch& wb,
+        std::ostream* debugfile)
 {
-    process_file<T, 128>(block->configuration().filename, ds, wb);
+    std::cerr << "Processing subrun for type " << typeid(T).name() << std::endl;
+    process_file<T, 128>(block->configuration().filename, ds, wb, debugfile);
+    std::cerr << "Done processing subrun for type " << typeid(T).name() << std::endl;
 }
 
 template <size_t N>
@@ -268,7 +278,7 @@ work(int argc, char* argv[])
     diy::RegularDecomposer<Bounds> decomposer(dim, domain, total_num_blocks);
     decomposer.decompose(world.rank(), assigner, create_blocks_for_this_rank);
 
-    hepnos::DataStore datastore = hepnos::DataStore::connect(hepnos_config);
+    hepnos::DataStore datastore = hepnos::DataStore::connect(hepnos_config, true);
     hepnos::DataSet root = datastore.root();
 
     { // scope to wait for AsyncEngine and WriteBatch to flush their data
@@ -289,25 +299,25 @@ work(int argc, char* argv[])
                         << " with configuration: " << b->configuration().filename.begin()
                         << '\n';
                 }
-                process_subrun<hep::rec_hdr>(b, cp, world.rank(), dataset, writeBatch);
-                process_subrun<hep::rec_slc>(b, cp, world.rank(), dataset, writeBatch);
-                process_subrun<hep::rec_vtx>(b, cp, world.rank(), dataset, writeBatch);
-                process_subrun<hep::rec_vtx_elastic_fuzzyk>(b, cp, world.rank(), dataset, writeBatch);
+                process_subrun<hep::rec_hdr>(b, cp, world.rank(), dataset, writeBatch, debugfile.get());
+                process_subrun<hep::rec_slc>(b, cp, world.rank(), dataset, writeBatch, debugfile.get());
+                process_subrun<hep::rec_vtx>(b, cp, world.rank(), dataset, writeBatch, debugfile.get());
+                process_subrun<hep::rec_vtx_elastic_fuzzyk>(b, cp, world.rank(), dataset, writeBatch, debugfile.get());
                 process_subrun<hep::rec_vtx_elastic_fuzzyk_png>(
-                    b, cp, world.rank(), dataset, writeBatch);
+                    b, cp, world.rank(), dataset, writeBatch, debugfile.get());
                 process_subrun<hep::rec_vtx_elastic_fuzzyk_png_shwlid>(
-                    b, cp, world.rank(), dataset, writeBatch);
+                    b, cp, world.rank(), dataset, writeBatch, debugfile.get());
                 process_subrun<hep::rec_vtx_elastic_fuzzyk_png_cvnpart>(
-                    b, cp, world.rank(), dataset, writeBatch);
-                process_subrun<hep::rec_sel_contain> (b, cp, world.rank(), dataset, writeBatch);
-                process_subrun<hep::rec_sel_cvn2017> (b, cp, world.rank(), dataset, writeBatch);
-                process_subrun<hep::rec_sel_cvnProd3Train> (b, cp, world.rank(), dataset, writeBatch);
-                process_subrun<hep::rec_sel_remid> (b, cp, world.rank(), dataset, writeBatch);
-                process_subrun<hep::rec_spill> (b, cp, world.rank(), dataset, writeBatch);
-                process_subrun<hep::rec_trk_cosmic> (b, cp, world.rank(), dataset, writeBatch);
-                process_subrun<hep::rec_trk_kalman> (b, cp, world.rank(), dataset, writeBatch);
-                process_subrun<hep::rec_trk_kalman_tracks> (b, cp, world.rank(), dataset, writeBatch);
-                process_subrun<hep::rec_energy_numu> (b, cp, world.rank(), dataset, writeBatch);
+                    b, cp, world.rank(), dataset, writeBatch, debugfile.get());
+                process_subrun<hep::rec_sel_contain> (b, cp, world.rank(), dataset, writeBatch, debugfile.get());
+                process_subrun<hep::rec_sel_cvn2017> (b, cp, world.rank(), dataset, writeBatch, debugfile.get());
+                process_subrun<hep::rec_sel_cvnProd3Train> (b, cp, world.rank(), dataset, writeBatch, debugfile.get());
+                process_subrun<hep::rec_sel_remid> (b, cp, world.rank(), dataset, writeBatch, debugfile.get());
+                process_subrun<hep::rec_spill> (b, cp, world.rank(), dataset, writeBatch, debugfile.get());
+                process_subrun<hep::rec_trk_cosmic> (b, cp, world.rank(), dataset, writeBatch, debugfile.get());
+                process_subrun<hep::rec_trk_kalman> (b, cp, world.rank(), dataset, writeBatch, debugfile.get());
+                process_subrun<hep::rec_trk_kalman_tracks> (b, cp, world.rank(), dataset, writeBatch, debugfile.get());
+                process_subrun<hep::rec_energy_numu> (b, cp, world.rank(), dataset, writeBatch, debugfile.get());
 
             };
         master.foreach (execute_block);
