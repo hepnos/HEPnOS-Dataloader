@@ -65,6 +65,7 @@ find_package(hepnos REQUIRED)
 # Include dirs
 set                         (CMAKE_INCLUDE_SYSTEM_FLAG_CXX "-isystem")
 include_directories         (${CMAKE_CURRENT_SOURCE_DIR}/include
+                            ${CMAKE_CURRENT_SOURCE_DIR}/src
                             ${DIY_INCLUDE_DIRS}
                              SYSTEM ${MPI_INCLUDE_PATH}
                             ${HDF5_INC})
@@ -75,6 +76,5 @@ set                         (libraries
                              ${CMAKE_THREAD_LIBS_INIT}
                              ${HDF5_C_LIBRARIES}
                              )
-
-add_executable              (dataloader dataloader.cc)
+add_executable              (dataloader src/dataloader.cc)
 target_link_libraries       (dataloader ${MPI_C_LIBRARIES} ${HDF5_C_LIBRARIES} hepnos ${Boost_SERIALIZATION_LIBRARY})
