@@ -35,8 +35,10 @@ spack load -r hepnos
 spack load -r diy
 spack load -r hdf5
 
+export DIY_INCLUDE_DIRS=`spack location -i diy`/include
+
 echo "Building HEPnOS DataLoader"
 mkdir build
 cd build
-cmake .. -DCMAKE_CXX_COMPILER=CC
+cmake .. -DCMAKE_CXX_COMPILER=CC -DDIY_INCLUDE_DIRS=$DIY_INCLUDE_DIRS
 make
