@@ -11,6 +11,7 @@ HERE=`basename "$0"`
 
 CONFIGFILE=$HERE/config.yaml
 CONNECTIONFILE=$HERE/connection.yaml
+export HOME=$HERE/../../..
 INPUTFILE=$HERE/datafiles.txt
 PDOMAIN=hepnos-dataloader
 export MPICH_GNI_NDREG_ENTRIES=1024
