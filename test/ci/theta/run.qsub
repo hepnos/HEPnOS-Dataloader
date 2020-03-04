@@ -11,16 +11,16 @@ HERE=`basename "$0"`
 
 CONFIGFILE=$HERE/config.yaml
 CONNECTIONFILE=$HERE/connection.yaml
-export HOME=$HERE/../../..
 INPUTFILE=$HERE/datafiles.txt
 PDOMAIN=hepnos-dataloader
 export MPICH_GNI_NDREG_ENTRIES=1024
+export HOME=`pwd`
 
 rm -rf ${CONNECTIONFILE}
 
 echo "Setting up spack and modules"
-source $HOME/spack/share/spack/setup-env.sh
-export MODULEPATH=$MODULEPATH:$HOME/spack/share/spack/modules/cray-cnl6-mic_knl
+source `pwd`/spack/share/spack/setup-env.sh
+export MODULEPATH=$MODULEPATH:`pwd`/spack/share/spack/modules/cray-cnl6-mic_knl
 spack load -r hepnos
 
 echo "Setting up protection domain"
