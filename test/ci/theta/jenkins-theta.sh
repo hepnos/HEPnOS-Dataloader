@@ -45,7 +45,7 @@ make
 cd ..
 
 echo "Running DataLoader"
-JOBID=`qsub --env HOME=$HOME $HERE/run.qsub`
+JOBID=`qsub $HERE/run.qsub`
 cqwait $JOBID
 
 echo "All done!"
