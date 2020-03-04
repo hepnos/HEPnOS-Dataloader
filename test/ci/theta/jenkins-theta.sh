@@ -42,3 +42,13 @@ mkdir build
 cd build
 cmake .. -DCMAKE_CXX_COMPILER=CC -DDIY_INCLUDE_DIRS=$DIY_INCLUDE_DIRS
 make
+cd ..
+
+echo "Running DataLoader"
+JOBID=`qsub --env HOME=$HOME $HERE/run.qsub`
+cqwait $JOBID
+
+echo "All done!"
+echo "Output:"
+
+cat JOBID.*
