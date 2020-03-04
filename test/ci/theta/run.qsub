@@ -1,5 +1,5 @@
 #!/bin/bash
-#COBALT -A radix-io
+#COBALT -A CSC250STDM12
 #COBALT -n 2
 #COBALT -t 0:10:00
 #COBALT --mode script
