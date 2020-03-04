@@ -51,4 +51,4 @@ cqwait $JOBID
 echo "All done!"
 echo "Output:"
 
-cat JOBID.*
+cat $JOBID.*
