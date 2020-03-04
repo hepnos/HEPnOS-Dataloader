@@ -52,3 +52,6 @@ echo "All done!"
 echo "Output:"
 
 cat $JOBID.*
+
+grep "task completed normally with an exit code of 0" $JOBID.cobaltlog
+exit $?
