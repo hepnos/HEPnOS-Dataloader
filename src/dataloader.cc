@@ -111,15 +111,15 @@ std::uint64_t getNum(std::string fname, std::regex r)
 template <typename T>
 void process_table(hepnos::SubRun& sr, hid_t hdf_file, hepnos::WriteBatch& wb, std::ostream* debugfile)
 {
-    std::cerr << "Processing subrun for type " << typeid(T).name() << std::endl;
+    if (debugfile) *debugfile << "Processing subrun for type " << typeid(T).name() << std::endl;
     std::vector<unsigned> runs;
     std::vector<unsigned> events;
     std::vector<unsigned> subruns;
     std::vector<T> table;
 
-    std::cerr << "Reading from HDF5 file... ";
+    if (debugfile) *debugfile << "Reading from HDF5 file... ";
     std::tie(runs, subruns, events, table) = T::from_hdf5(hdf_file);
-    std::cerr << "done" << std::endl;
+    if (debugfile) *debugfile << "done" << std::endl;
 
     auto batch_begin = events.cbegin();
     auto checkeve = [](uint64_t i, uint64_t j) { return (i != j); };
@@ -135,7 +135,7 @@ void process_table(hepnos::SubRun& sr, hid_t hdf_file, hepnos::WriteBatch& wb, s
         batch_begin = batch_end;
         batch_end = std::adjacent_find(batch_begin, events.cend(), checkeve);
     }
-    std::cerr << "Done processing subrun for type " << typeid(T).name() << std::endl;
+    if (debugfile) *debugfile << "Done processing subrun for type " << typeid(T).name() << std::endl;
 }
 
 template <size_t N> std::array<char, N> string_to_array(std::string str)
@@ -263,11 +263,11 @@ void work(int argc, char* argv[])
                         << '\n';
                 }
                 std::string fname(b->configuration().filename.data());
-                std::cerr << "Opening HDF5 file " << fname << std::endl;
+                if (debugfile) *debugfile << "Opening HDF5 file " << fname << std::endl;
                 hid_t hdf_file = H5Fopen(fname.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT);
                 auto r = dataset.createRun(getNum(fname, std::regex("(_r000)([0-9]{5})")));
                 auto sr = r.createSubRun(getNum(fname, std::regex("(_s)([0-9]{2})")));
-                std::cerr << "Created run " << r.number() << " subrun " << sr.number() << std::endl;
+                if (debugfile) *debugfile << "Created run " << r.number() << " subrun " << sr.number() << std::endl;
 
                 process_table<hep::rec_hdr>(sr, hdf_file, writeBatch, debugfile.get());
                 process_table<hep::rec_slc>(sr, hdf_file, writeBatch, debugfile.get());
