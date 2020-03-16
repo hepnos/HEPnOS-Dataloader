@@ -245,10 +245,10 @@ void work(int argc, char* argv[])
         hepnos::WriteBatch writeBatch(datastore, 100); // asyncEngine, 100);
 
         if (debugfile) *debugfile << "Created data store" << std::endl;
-        if (rank == 0) {
+        if (world.rank() == 0) {
             root.createDataSet("NOvA");
         }
-        MPI_Barrier(MPI_COMM_WORLD);
+        world.barrier();
         hepnos::DataSet dataset = root["NOvA"];
 
         if (debugfile) *debugfile << "Created data set " << dataset.name() << std::endl;
