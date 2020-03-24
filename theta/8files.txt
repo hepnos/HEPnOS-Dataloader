@@ -1,0 +1,8 @@
+/projects/HEP_on_HPC/ddoyle/ND_data/h5_3months/neardet_r00012096_s00_t00_R19-02-23-miniprod5.i_v1_data.h5caf.h5
+/projects/HEP_on_HPC/ddoyle/ND_data/h5_3months/neardet_r00012096_s01_t00_R19-02-23-miniprod5.i_v1_data.h5caf.h5
+/projects/HEP_on_HPC/ddoyle/ND_data/h5_3months/neardet_r00012096_s02_t00_R19-02-23-miniprod5.i_v1_data.h5caf.h5
+/projects/HEP_on_HPC/ddoyle/ND_data/h5_3months/neardet_r00012096_s03_t00_R19-02-23-miniprod5.i_v1_data.h5caf.h5
+/projects/HEP_on_HPC/ddoyle/ND_data/h5_3months/neardet_r00012096_s04_t00_R19-02-23-miniprod5.i_v1_data.h5caf.h5
+/projects/HEP_on_HPC/ddoyle/ND_data/h5_3months/neardet_r00012096_s05_t00_R19-02-23-miniprod5.i_v1_data.h5caf.h5
+/projects/HEP_on_HPC/ddoyle/ND_data/h5_3months/neardet_r00012096_s06_t00_R19-02-23-miniprod5.i_v1_data.h5caf.h5
+/projects/HEP_on_HPC/ddoyle/ND_data/h5_3months/neardet_r00012096_s07_t00_R19-02-23-miniprod5.i_v1_data.h5caf.h5
