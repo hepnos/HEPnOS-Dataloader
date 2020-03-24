@@ -37,6 +37,7 @@ static bool        g_use_async;         // Whether to use an AsyncEngine
 static int         g_num_async_threads; // How many threads for the AsyncEngine
 static bool        g_use_batching;      // Whether to use batching
 static bool        g_batch_size;        // Batch size
+static std::string g_product_label;     // Product label
 static spdlog::level::level_enum g_logging_level; // Logging level
 
 static uint64_t g_total_events = 0;
@@ -133,8 +134,9 @@ static void parse_arguments(int argc, char** argv) {
         TCLAP::SwitchArg useAsync("a", "async", "Use asynchronous operations", false);
         TCLAP::ValueArg<int> asyncThreads("t", "threads", "Number of threads for asynchronous operations", false, 1, "int");
         TCLAP::ValueArg<int> batchSize("b", "batchsize", "Batch size for operations", false, 0, "int");
-        TCLAP::ValueArg<std::string> loggingLevel("l", "logging", "Logging output type (info, debug, critical)", false, "info",
+        TCLAP::ValueArg<std::string> loggingLevel("v", "verbose", "Logging output type (info, debug, critical)", false, "info",
                                                   "trace,debug,info,warning,error,critical,off");
+        TCLAP::ValueArg<std::string> productLabel("l", "label", "Label to use when storing products", true, "", "string");
 
         cmd.add(clientFile);
         cmd.add(fileName);
@@ -143,6 +145,7 @@ static void parse_arguments(int argc, char** argv) {
         cmd.add(asyncThreads);
         cmd.add(batchSize);
         cmd.add(loggingLevel);
+        cmd.add(productLabel);
         cmd.parse(argc, argv);
 
         g_connection_file   = clientFile.getValue();
@@ -153,6 +156,7 @@ static void parse_arguments(int argc, char** argv) {
         g_batch_size        = batchSize.getValue();
         g_use_batching      = g_batch_size > 0;
         g_logging_level     = spdlog::level::from_str(loggingLevel.getValue());
+        g_product_label     = productLabel.getValue();
 
     } catch(TCLAP::ArgException &e) {
         if(g_rank == 0) {
@@ -228,7 +232,7 @@ static void process_table(hepnos::SubRun& sr,
         size_t b_idx = batch_begin - events.cbegin();
         size_t e_idx = batch_end - events.cbegin();
         g_total_products += 1;
-        ev.store(wb, "a", table, b_idx, e_idx);
+        ev.store(wb, g_product_label, table, b_idx, e_idx);
         batch_begin = batch_end;
         batch_end = std::adjacent_find(batch_begin, events.cend(), checkeve);
     }
