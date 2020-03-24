@@ -39,6 +39,9 @@ static bool        g_use_batching;      // Whether to use batching
 static bool        g_batch_size;        // Batch size
 static spdlog::level::level_enum g_logging_level; // Logging level
 
+static uint64_t g_total_events = 0;
+static uint64_t g_total_products = 0;
+
 static void parse_arguments(int argc, char** argv);
 static void read_input_file(WorkQueue& work_queue);
 static void create_output_dataset(const hepnos::DataStore& datastore);
@@ -61,6 +64,7 @@ int main(int argc, char** argv) {
     // Initialize HEPnOS
     hepnos::DataStore datastore;
     try {
+        spdlog::info("Connecting to HEPnOS using file {}", g_connection_file);
         datastore = hepnos::DataStore::connect(g_connection_file, g_use_async);
     } catch(const hepnos::Exception& ex) {
         spdlog::critical("Could not connect to HEPnOS service: {}", ex.what());
@@ -68,7 +72,9 @@ int main(int argc, char** argv) {
     }
     // Rank 0 create the input dataset if it does not exist
     if(g_rank == 0) {
+        spdlog::info("Creating output dataset {}", g_output_dataset);
         create_output_dataset(datastore);
+        spdlog::info("Done creating the output dataset");
     }
     MPI_Barrier(MPI_COMM_WORLD);
     // Get the dataset in which to write the data
@@ -76,20 +82,26 @@ int main(int argc, char** argv) {
     // We need a scope to prevent MPI_Finalize to be called before the destructor of WorkQueue
     {
         // Initialize the work queue
+        spdlog::info("Initializing work queue");
         WorkQueue work_queue(MPI_COMM_WORLD);
         // Rank 0 read the list of files
         if(g_rank == 0) {
+            spdlog::info("Reading input file list");
             read_input_file(work_queue);
+            spdlog::info("Done reading input file list");
         }
         // Everyone marks the work queue as read-only from now on
         work_queue.readonly();
         // Initialize write batch
         hepnos::WriteBatch write_batch;
         if(g_use_batching) {
+            spdlog::debug("Initializing WriteBatch");
             if(g_use_async) {
+                spdlog::debug("WriteBatch will use an AsyncEngine with {} threads", g_num_async_threads);
                 auto async = hepnos::AsyncEngine(datastore, g_num_async_threads);
                 write_batch = hepnos::WriteBatch(async, g_batch_size);
             } else {
+                spdlog::debug("WriteBatch will not use any AsyncEngine");
                 write_batch = hepnos::WriteBatch(datastore, g_batch_size);
             }
         }
@@ -98,7 +110,6 @@ int main(int argc, char** argv) {
         try {
             while(true) {
                 std::string filename = work_queue.pull();
-                spdlog::info("Processing file {}", filename);
                 process_hdf5_file(dataset, filename, write_batch);
             }
         } catch(WorkQueue::EmptyQueueException& ex) {}
@@ -107,6 +118,8 @@ int main(int argc, char** argv) {
         write_batch.collectStatistics(stats);
         spdlog::info("WriteBatch statistics: {}", stats);
     }
+    spdlog::info("All done, exiting!");
+    spdlog::info("Created {} events and {} products", g_total_events, g_total_products);
     MPI_Finalize();
 }
 
@@ -132,6 +145,7 @@ static void parse_arguments(int argc, char** argv) {
         cmd.add(loggingLevel);
         cmd.parse(argc, argv);
 
+        g_connection_file   = clientFile.getValue();
         g_input_filename    = fileName.getValue();
         g_output_dataset    = dataSetName.getValue();
         g_use_async         = useAsync.getValue();
@@ -181,14 +195,19 @@ static void create_output_dataset(const hepnos::DataStore& datastore) {
 
 
 template <typename T>
-static void process_table(hepnos::SubRun& sr, hid_t hdf_file, hepnos::WriteBatch& wb)
+static void process_table(hepnos::SubRun& sr,
+       std::unordered_map<hepnos::EventNumber,hepnos::Event>& createdEvents,
+       hid_t hdf_file, hepnos::WriteBatch& wb)
 {
+    spdlog::debug("Processing table {}", hepnos::demangle<T>());
     std::vector<unsigned> runs;
     std::vector<unsigned> events;
     std::vector<unsigned> subruns;
     std::vector<T> table;
 
+    spdlog::debug("Reading HDF5 file...");
     std::tie(runs, subruns, events, table) = T::from_hdf5(hdf_file);
+    spdlog::debug("Done HDF5 reading file");
 
     auto batch_begin = events.cbegin();
     auto checkeve = [](uint64_t i, uint64_t j) { return (i != j); };
@@ -197,13 +216,23 @@ static void process_table(hepnos::SubRun& sr, hid_t hdf_file, hepnos::WriteBatch
     while (batch_begin != events.cend()) {
         if (batch_end != events.cend())
             batch_end = batch_end + 1;
-        auto ev = sr.createEvent(wb, *batch_begin);
+        hepnos::Event ev;
+        auto it = createdEvents.find(*batch_begin);
+        if(it == createdEvents.end()) {
+            ev = sr.createEvent(wb, *batch_begin);
+            g_total_events += 1;
+            createdEvents[*batch_begin] = ev;
+        } else {
+            ev = it->second;
+        }
         size_t b_idx = batch_begin - events.cbegin();
         size_t e_idx = batch_end - events.cbegin();
+        g_total_products += 1;
         ev.store(wb, "a", table, b_idx, e_idx);
         batch_begin = batch_end;
         batch_end = std::adjacent_find(batch_begin, events.cend(), checkeve);
     }
+    spdlog::debug("Done processing table {}", hepnos::demangle<T>());
 }
 
 static uint64_t parse_num_from_filename(const std::string& filename, const std::regex& r) {
@@ -218,31 +247,45 @@ static uint64_t parse_num_from_filename(const std::string& filename, const std::
 static void process_hdf5_file(hepnos::DataSet& dataset,
         const std::string& filename, hepnos::WriteBatch& writeBatch) {
 
-    hid_t hdf_file = H5Fopen(filename.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT);
-    auto r = dataset.createRun(parse_num_from_filename(filename, std::regex("(_r000)([0-9]{5})")));
-    auto sr = r.createSubRun(parse_num_from_filename(filename, std::regex("(_s)([0-9]{2})")));
+    spdlog::info("Starting file {}", filename);
 
-    process_table<hep::rec_hdr>(sr, hdf_file, writeBatch);
-    process_table<hep::rec_slc>(sr, hdf_file, writeBatch);
-    process_table<hep::rec_vtx>(sr, hdf_file, writeBatch);
-    process_table<hep::rec_vtx_elastic_fuzzyk>(sr, hdf_file, writeBatch);
-    process_table<hep::rec_vtx_elastic_fuzzyk_png>(sr, hdf_file, writeBatch);
-    process_table<hep::rec_vtx_elastic_fuzzyk_png_shwlid>(sr, hdf_file, writeBatch);
-    process_table<hep::rec_vtx_elastic_fuzzyk_png_cvnpart>(sr, hdf_file, writeBatch);
-    process_table<hep::rec_sel_contain>(sr, hdf_file, writeBatch);
-    process_table<hep::rec_sel_cvn2017>(sr, hdf_file, writeBatch);
-    process_table<hep::rec_sel_cvnProd3Train>(sr, hdf_file, writeBatch);
-    process_table<hep::rec_sel_remid>(sr, hdf_file, writeBatch);
-    process_table<hep::rec_spill>(sr, hdf_file, writeBatch);
-    process_table<hep::rec_trk_cosmic>(sr, hdf_file, writeBatch);
-    process_table<hep::rec_trk_kalman>(sr, hdf_file, writeBatch);
-    process_table<hep::rec_trk_kalman_tracks>(sr, hdf_file, writeBatch);
-    process_table<hep::rec_energy_numu>(sr, hdf_file, writeBatch);
+    hid_t hdf_file = H5Fopen(filename.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT);
+
+    hepnos::RunNumber runNumber = parse_num_from_filename(filename, std::regex("(_r000)([0-9]{5})"));
+    hepnos::SubRunNumber subrunNumber = parse_num_from_filename(filename, std::regex("(_s)([0-9]{2})"));
+    spdlog::debug("Creating run {} and subrun {}", runNumber, subrunNumber);
+
+    auto r = dataset.createRun(runNumber);
+    auto sr = r.createSubRun(subrunNumber);
+
+    std::unordered_map<hepnos::EventNumber,hepnos::Event> createdEvents;
+
+    spdlog::debug("Done creating/accessing run/subrun");
+
+    process_table<hep::rec_hdr>(sr, createdEvents, hdf_file, writeBatch);
+    process_table<hep::rec_slc>(sr, createdEvents, hdf_file, writeBatch);
+    process_table<hep::rec_vtx>(sr, createdEvents, hdf_file, writeBatch);
+    process_table<hep::rec_vtx_elastic_fuzzyk>(sr, createdEvents, hdf_file, writeBatch);
+    process_table<hep::rec_vtx_elastic_fuzzyk_png>(sr, createdEvents, hdf_file, writeBatch);
+    process_table<hep::rec_vtx_elastic_fuzzyk_png_shwlid>(sr, createdEvents, hdf_file, writeBatch);
+    process_table<hep::rec_vtx_elastic_fuzzyk_png_cvnpart>(sr, createdEvents, hdf_file, writeBatch);
+    process_table<hep::rec_sel_contain>(sr, createdEvents, hdf_file, writeBatch);
+    process_table<hep::rec_sel_cvn2017>(sr, createdEvents, hdf_file, writeBatch);
+    process_table<hep::rec_sel_cvnProd3Train>(sr, createdEvents, hdf_file, writeBatch);
+    process_table<hep::rec_sel_remid>(sr, createdEvents, hdf_file, writeBatch);
+    process_table<hep::rec_spill>(sr, createdEvents, hdf_file, writeBatch);
+    process_table<hep::rec_trk_cosmic>(sr, createdEvents, hdf_file, writeBatch);
+    process_table<hep::rec_trk_kalman>(sr, createdEvents, hdf_file, writeBatch);
+    process_table<hep::rec_trk_kalman_tracks>(sr, createdEvents, hdf_file, writeBatch);
+    process_table<hep::rec_energy_numu>(sr, createdEvents, hdf_file, writeBatch);
 
     if(!g_use_async) {
+        spdlog::info("Flushing data from WriteBatch...");
         writeBatch.flush();
+        spdlog::info("Done flushing");
     }
 
     H5Fclose(hdf_file);
+    spdlog::info("Done with file {}", filename);
 }
 
