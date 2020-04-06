@@ -39,5 +39,8 @@ find_package(hepnos REQUIRED)
 set(libraries ${libraries} hepnos)
 
 # Executable
-add_executable(dataloader src/DataLoader.cpp)
-target_link_libraries(dataloader ${libraries})
+add_executable(hepnos-dataloader src/DataLoader.cpp)
+target_link_libraries(hepnos-dataloader ${libraries})
+
+install(TARGETS hepnos-dataloader
+        DESTINATION bin)
