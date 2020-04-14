@@ -92,6 +92,7 @@ int main(int argc, char** argv) {
                 write_batch = hepnos::WriteBatch(datastore, g_batch_size);
             }
         }
+        write_batch.activateStatistics();
         // Process HDF5 files
         try {
             while(true) {
@@ -100,7 +101,10 @@ int main(int argc, char** argv) {
                 process_hdf5_file(dataset, filename, write_batch);
             }
         } catch(WorkQueue::EmptyQueueException& ex) {}
-        spdlog::info("Work completed!\n");
+        spdlog::info("Work completed!");
+        hepnos::WriteBatchStatistics stats;
+        write_batch.collectStatistics(stats);
+        spdlog::info("WriteBatch statistics: {}", stats);
     }
     MPI_Finalize();
 }
