@@ -5,6 +5,7 @@
 #include <fstream>
 #include <string>
 #include <spdlog/spdlog.h>
+#include <spdlog/fmt/ostr.h>
 #include <tclap/CmdLine.h>
 #include <hepnos.hpp>
 
