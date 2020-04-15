@@ -36,7 +36,7 @@ static std::string g_output_dataset;    // Output HEPnOS dataset
 static bool        g_use_async;         // Whether to use an AsyncEngine
 static int         g_num_async_threads; // How many threads for the AsyncEngine
 static bool        g_use_batching;      // Whether to use batching
-static bool        g_batch_size;        // Batch size
+static size_t      g_batch_size;        // Batch size
 static std::string g_product_label;     // Product label
 static spdlog::level::level_enum g_logging_level; // Logging level
 
@@ -62,6 +62,16 @@ int main(int argc, char** argv) {
     parse_arguments(argc, argv);
     // Set logging level
     spdlog::set_level(g_logging_level);
+
+    spdlog::debug("connection file: {}", g_connection_file);
+    spdlog::debug("input file: {}", g_input_filename);
+    spdlog::debug("output dataset: {}", g_output_dataset);
+    spdlog::debug("use async: {}", g_use_async);
+    spdlog::debug("async threads: {}", g_num_async_threads);
+    spdlog::debug("use batching: {}", g_use_batching);
+    spdlog::debug("batch size: {}", g_batch_size);
+    spdlog::debug("product label: {}", g_product_label);
+
     // Initialize HEPnOS
     hepnos::DataStore datastore;
     try {
@@ -95,11 +105,12 @@ int main(int argc, char** argv) {
         work_queue.readonly();
         // Initialize write batch
         hepnos::WriteBatch write_batch;
+        hepnos::AsyncEngine async;
         if(g_use_batching) {
             spdlog::debug("Initializing WriteBatch");
             if(g_use_async) {
                 spdlog::debug("WriteBatch will use an AsyncEngine with {} threads", g_num_async_threads);
-                auto async = hepnos::AsyncEngine(datastore, g_num_async_threads);
+                async = hepnos::AsyncEngine(datastore, g_num_async_threads);
                 write_batch = hepnos::WriteBatch(async, g_batch_size);
             } else {
                 spdlog::debug("WriteBatch will not use any AsyncEngine");
@@ -115,6 +126,8 @@ int main(int argc, char** argv) {
             }
         } catch(WorkQueue::EmptyQueueException& ex) {}
         spdlog::info("Work completed!");
+        spdlog::info("Waiting for WriteBatch to flush...");
+        write_batch.flush();
         hepnos::WriteBatchStatistics stats;
         write_batch.collectStatistics(stats);
         spdlog::info("WriteBatch statistics: {}", stats);
@@ -157,7 +170,6 @@ static void parse_arguments(int argc, char** argv) {
         g_use_batching      = g_batch_size > 0;
         g_logging_level     = spdlog::level::from_str(loggingLevel.getValue());
         g_product_label     = productLabel.getValue();
-
     } catch(TCLAP::ArgException &e) {
         if(g_rank == 0) {
             spdlog::critical("{} for command-line argument {}", e.error(), e.argId());
