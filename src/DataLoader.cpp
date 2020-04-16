@@ -38,6 +38,7 @@ static int         g_num_async_threads; // How many threads for the AsyncEngine
 static bool        g_use_batching;      // Whether to use batching
 static size_t      g_batch_size;        // Batch size
 static std::string g_product_label;     // Product label
+static bool        g_simulate;          // Simulate output
 static spdlog::level::level_enum g_logging_level; // Logging level
 
 static uint64_t g_total_events = 0;
@@ -82,19 +83,21 @@ int main(int argc, char** argv) {
         MPI_Abort(MPI_COMM_WORLD, 1);
     }
     // Rank 0 create the input dataset if it does not exist
-    if(g_rank == 0) {
+    if(g_rank == 0 && not g_simulate) {
         spdlog::info("Creating output dataset {}", g_output_dataset);
         create_output_dataset(datastore);
         spdlog::info("Done creating the output dataset");
     }
     MPI_Barrier(MPI_COMM_WORLD);
     // Get the dataset in which to write the data
-    hepnos::DataSet dataset = datastore.root()[g_output_dataset];
+    hepnos::DataSet dataset;
+    if(not g_simulate) dataset = datastore.root()[g_output_dataset];
     // We need a scope to prevent MPI_Finalize to be called before the destructor of WorkQueue
     {
         // Initialize the work queue
         spdlog::info("Initializing work queue");
         WorkQueue work_queue(MPI_COMM_WORLD);
+        spdlog::debug("Queue initialized");
         // Rank 0 read the list of files
         if(g_rank == 0) {
             spdlog::info("Reading input file list");
@@ -106,7 +109,7 @@ int main(int argc, char** argv) {
         // Initialize write batch
         hepnos::WriteBatch write_batch;
         hepnos::AsyncEngine async;
-        if(g_use_batching) {
+        if(g_use_batching && not g_simulate) {
             spdlog::debug("Initializing WriteBatch");
             if(g_use_async) {
                 spdlog::debug("WriteBatch will use an AsyncEngine with {} threads", g_num_async_threads);
@@ -116,8 +119,8 @@ int main(int argc, char** argv) {
                 spdlog::debug("WriteBatch will not use any AsyncEngine");
                 write_batch = hepnos::WriteBatch(datastore, g_batch_size);
             }
+            write_batch.activateStatistics();
         }
-        write_batch.activateStatistics();
         // Process HDF5 files
         try {
             while(true) {
@@ -126,11 +129,13 @@ int main(int argc, char** argv) {
             }
         } catch(WorkQueue::EmptyQueueException& ex) {}
         spdlog::info("Work completed!");
-        spdlog::info("Waiting for WriteBatch to flush...");
-        write_batch.flush();
-        hepnos::WriteBatchStatistics stats;
-        write_batch.collectStatistics(stats);
-        spdlog::info("WriteBatch statistics: {}", stats);
+        if(not g_simulate) {
+            spdlog::info("Waiting for WriteBatch to flush...");
+            write_batch.flush();
+            hepnos::WriteBatchStatistics stats;
+            write_batch.collectStatistics(stats);
+            spdlog::info("WriteBatch statistics: {}", stats);
+        }
     }
     spdlog::info("All done, exiting!");
     spdlog::info("Created {} events and {} products", g_total_events, g_total_products);
@@ -150,6 +155,7 @@ static void parse_arguments(int argc, char** argv) {
         TCLAP::ValueArg<std::string> loggingLevel("v", "verbose", "Logging output type (info, debug, critical)", false, "info",
                                                   "trace,debug,info,warning,error,critical,off");
         TCLAP::ValueArg<std::string> productLabel("l", "label", "Label to use when storing products", true, "", "string");
+        TCLAP::SwitchArg simulate("s", "simulate", "Only read HDF5 files, simulate writes", false);
 
         cmd.add(clientFile);
         cmd.add(fileName);
@@ -159,6 +165,7 @@ static void parse_arguments(int argc, char** argv) {
         cmd.add(batchSize);
         cmd.add(loggingLevel);
         cmd.add(productLabel);
+        cmd.add(simulate);
         cmd.parse(argc, argv);
 
         g_connection_file   = clientFile.getValue();
@@ -170,6 +177,8 @@ static void parse_arguments(int argc, char** argv) {
         g_use_batching      = g_batch_size > 0;
         g_logging_level     = spdlog::level::from_str(loggingLevel.getValue());
         g_product_label     = productLabel.getValue();
+        g_simulate          = simulate.getValue();
+
     } catch(TCLAP::ArgException &e) {
         if(g_rank == 0) {
             spdlog::critical("{} for command-line argument {}", e.error(), e.argId());
@@ -233,18 +242,21 @@ static void process_table(hepnos::SubRun& sr,
         if (batch_end != events.cend())
             batch_end = batch_end + 1;
         hepnos::Event ev;
-        auto it = createdEvents.find(*batch_begin);
-        if(it == createdEvents.end()) {
-            ev = sr.createEvent(wb, *batch_begin);
-            g_total_events += 1;
-            createdEvents[*batch_begin] = ev;
-        } else {
-            ev = it->second;
+        if(not g_simulate) {
+            auto it = createdEvents.find(*batch_begin);
+            if(it == createdEvents.end()) {
+                ev = sr.createEvent(wb, *batch_begin);
+                g_total_events += 1;
+                createdEvents[*batch_begin] = ev;
+            } else {
+                ev = it->second;
+            }
         }
         size_t b_idx = batch_begin - events.cbegin();
         size_t e_idx = batch_end - events.cbegin();
         g_total_products += 1;
-        ev.store(wb, g_product_label, table, b_idx, e_idx);
+        if(not g_simulate)
+            ev.store(wb, g_product_label, table, b_idx, e_idx);
         batch_begin = batch_end;
         batch_end = std::adjacent_find(batch_begin, events.cend(), checkeve);
     }
@@ -271,8 +283,13 @@ static void process_hdf5_file(hepnos::DataSet& dataset,
     hepnos::SubRunNumber subrunNumber = parse_num_from_filename(filename, std::regex("(_s)([0-9]{2})"));
     spdlog::debug("Creating run {} and subrun {}", runNumber, subrunNumber);
 
-    auto r = dataset.createRun(runNumber);
-    auto sr = r.createSubRun(subrunNumber);
+    hepnos::Run r;
+    hepnos::SubRun sr;
+
+    if(not g_simulate) {
+        r = dataset.createRun(runNumber);
+        sr = r.createSubRun(subrunNumber);
+    }
 
     std::unordered_map<hepnos::EventNumber,hepnos::Event> createdEvents;
 
@@ -295,7 +312,7 @@ static void process_hdf5_file(hepnos::DataSet& dataset,
     process_table<hep::rec_trk_kalman_tracks>(sr, createdEvents, hdf_file, writeBatch);
     process_table<hep::rec_energy_numu>(sr, createdEvents, hdf_file, writeBatch);
 
-    if(!g_use_async) {
+    if((not g_simulate) && (not g_use_async)) {
         spdlog::info("Flushing data from WriteBatch...");
         writeBatch.flush();
         spdlog::info("Done flushing");
