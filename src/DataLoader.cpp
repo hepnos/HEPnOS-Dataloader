@@ -4,29 +4,17 @@
 #include <regex>
 #include <fstream>
 #include <string>
+#include <unordered_map>
 #include <spdlog/spdlog.h>
 #include <spdlog/fmt/ostr.h>
 #include <tclap/CmdLine.h>
 #include <hepnos.hpp>
 
-#include "WorkQueue.hpp"
+#define HEPNOS_ENABLE_HDF5
+#include "hepnos-nova-classes/_all_.hpp"
+#include "hepnos-nova-classes/_macro_.hpp"
 
-#include "dataformat/rec_hdr.hpp"
-#include "dataformat/rec_slc.hpp"
-#include "dataformat/rec_vtx.hpp"
-#include "dataformat/rec_vtx_elastic_fuzzyk.hpp"
-#include "dataformat/rec_vtx_elastic_fuzzyk_png.hpp"
-#include "dataformat/rec_vtx_elastic_fuzzyk_png_shwlid.hpp"
-#include "dataformat/rec_vtx_elastic_fuzzyk_png_cvnpart.hpp"
-#include "dataformat/rec_energy_numu.hpp"
-#include "dataformat/rec_sel_contain.hpp"
-#include "dataformat/rec_sel_cvn2017.hpp"
-#include "dataformat/rec_sel_cvnProd3Train.hpp"
-#include "dataformat/rec_sel_remid.hpp"
-#include "dataformat/rec_spill.hpp"
-#include "dataformat/rec_trk_cosmic.hpp"
-#include "dataformat/rec_trk_kalman.hpp"
-#include "dataformat/rec_trk_kalman_tracks.hpp"
+#include "WorkQueue.hpp"
 
 static int         g_rank;              // Rank of this process
 static int         g_size;              // Size of MPI_COMM_WORKD
@@ -40,17 +28,28 @@ static size_t      g_batch_size;        // Batch size
 static std::string g_product_label;     // Product label
 static bool        g_simulate;          // Simulate output
 static spdlog::level::level_enum g_logging_level; // Logging level
+static std::vector<std::string>  g_product_names; // Product names
 
 static uint64_t g_total_events = 0;
 static uint64_t g_total_products = 0;
+
+static std::unordered_map<std::string,
+    std::function<void(hepnos::SubRun&,
+                       std::unordered_map<hepnos::EventNumber,hepnos::Event>&,
+                       hid_t, hepnos::WriteBatch&)>
+    > g_load_product_fn;
+static void process_table(hepnos::SubRun& sr,
+       std::unordered_map<hepnos::EventNumber,hepnos::Event>& createdEvents,
+       hid_t hdf_file, hepnos::WriteBatch& wb);
 
 static void parse_arguments(int argc, char** argv);
 static void read_input_file(WorkQueue& work_queue);
 static void create_output_dataset(const hepnos::DataStore& datastore);
 static void process_hdf5_file(hepnos::DataSet& dataset, const std::string& filename, hepnos::WriteBatch& wb);
+static void prepare_product_loading_functions();
 
 int main(int argc, char** argv) {
-    
+
     MPI_Init(&argc, &argv);
     MPI_Comm_rank(MPI_COMM_WORLD, &g_rank);
     MPI_Comm_size(MPI_COMM_WORLD, &g_size);
@@ -72,6 +71,19 @@ int main(int argc, char** argv) {
     spdlog::debug("use batching: {}", g_use_batching);
     spdlog::debug("batch size: {}", g_batch_size);
     spdlog::debug("product label: {}", g_product_label);
+
+    prepare_product_loading_functions();
+
+    if(g_rank == 0) {
+        for(auto& p : g_product_names) {
+            if(g_load_product_fn.count(p) == 0) {
+                spdlog::critical("Unknown product name {}", p);
+                MPI_Abort(MPI_COMM_WORLD, -1);
+                exit(-1);
+            }
+        }
+    }
+    MPI_Barrier(MPI_COMM_WORLD);
 
     // Initialize HEPnOS
     hepnos::DataStore datastore;
@@ -156,6 +168,8 @@ static void parse_arguments(int argc, char** argv) {
                                                   "trace,debug,info,warning,error,critical,off");
         TCLAP::ValueArg<std::string> productLabel("l", "label", "Label to use when storing products", true, "", "string");
         TCLAP::SwitchArg simulate("s", "simulate", "Only read HDF5 files, simulate writes", false);
+        TCLAP::MultiArg<std::string> productNames("n", "product-names",
+            "Name of the products to load", false, "string");
 
         cmd.add(clientFile);
         cmd.add(fileName);
@@ -166,6 +180,7 @@ static void parse_arguments(int argc, char** argv) {
         cmd.add(loggingLevel);
         cmd.add(productLabel);
         cmd.add(simulate);
+        cmd.add(productNames);
         cmd.parse(argc, argv);
 
         g_connection_file   = clientFile.getValue();
@@ -178,13 +193,14 @@ static void parse_arguments(int argc, char** argv) {
         g_logging_level     = spdlog::level::from_str(loggingLevel.getValue());
         g_product_label     = productLabel.getValue();
         g_simulate          = simulate.getValue();
+        g_product_names     = productNames.getValue();
 
     } catch(TCLAP::ArgException &e) {
         if(g_rank == 0) {
             spdlog::critical("{} for command-line argument {}", e.error(), e.argId());
             MPI_Abort(MPI_COMM_WORLD, 1);
         }
-    } 
+    }
 }
 
 static void read_input_file(WorkQueue& work_queue) {
@@ -272,6 +288,15 @@ static uint64_t parse_num_from_filename(const std::string& filename, const std::
     return -1;
 }
 
+static void prepare_product_loading_functions() {
+    spdlog::trace("Preparing functions for loading producs");
+#define X(__class__) \
+    g_load_product_fn[#__class__] = &process_table<__class__>;
+    HEPNOS_FOREACH_NOVA_CLASS
+#undef X
+    spdlog::trace("Created functions for {} product types", g_load_product_fn.size());
+}
+
 static void process_hdf5_file(hepnos::DataSet& dataset,
         const std::string& filename, hepnos::WriteBatch& writeBatch) {
 
@@ -295,6 +320,11 @@ static void process_hdf5_file(hepnos::DataSet& dataset,
 
     spdlog::debug("Done creating/accessing run/subrun");
 
+    for(auto& product_name : g_product_names) {
+        g_load_product_fn[product_name](sr, createdEvents, hdf_file, writeBatch);
+    }
+
+#if 0
     process_table<hep::rec_hdr>(sr, createdEvents, hdf_file, writeBatch);
     process_table<hep::rec_slc>(sr, createdEvents, hdf_file, writeBatch);
     process_table<hep::rec_vtx>(sr, createdEvents, hdf_file, writeBatch);
@@ -311,6 +341,7 @@ static void process_hdf5_file(hepnos::DataSet& dataset,
     process_table<hep::rec_trk_kalman>(sr, createdEvents, hdf_file, writeBatch);
     process_table<hep::rec_trk_kalman_tracks>(sr, createdEvents, hdf_file, writeBatch);
     process_table<hep::rec_energy_numu>(sr, createdEvents, hdf_file, writeBatch);
+#endif
 
     if((not g_simulate) && (not g_use_async)) {
         spdlog::info("Flushing data from WriteBatch...");
