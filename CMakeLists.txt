@@ -8,6 +8,11 @@ set (CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH}
 # C++14
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14")
 
+option (ONLY_TEST_CLASSES "Build only a subset of NoVA classes" OFF)
+if(${ONLY_TEST_CLASSES})
+    add_definitions(-DONLY_TEST_CLASSES)
+endif()
+
 set(CMAKE_INCLUDE_SYSTEM_FLAG_CXX "-isystem")
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include
                     ${CMAKE_CURRENT_SOURCE_DIR}/src)

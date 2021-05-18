@@ -11,8 +11,13 @@
 #include <hepnos.hpp>
 
 #define HEPNOS_ENABLE_HDF5
+#ifdef ONLY_TEST_CLASSES
+#include "_test_.hpp"
+#include "_test_macro_.hpp"
+#else
 #include "hepnos-nova-classes/_all_.hpp"
 #include "hepnos-nova-classes/_macro_.hpp"
+#endif
 
 #include "WorkQueue.hpp"
 
