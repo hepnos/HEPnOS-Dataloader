@@ -23,7 +23,7 @@ include_directories(${TCLAP_INCLUDE_PATH})
 
 # SPDLOG
 find_package(spdlog REQUIRED)
-set(libraries ${libraries} spdlog)
+set(libraries ${libraries} spdlog::spdlog)
 
 # HDF5
 find_package(HDF5 REQUIRED COMPONENTS C)
