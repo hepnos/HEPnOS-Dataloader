@@ -24,6 +24,8 @@
 static int         g_rank;              // Rank of this process
 static int         g_size;              // Size of MPI_COMM_WORKD
 static std::string g_connection_file;   // Name of HEPnOS YAML client file
+static std::string g_protocol;          // Protocol to use for Mercury
+static std::string g_margo_file;        // Margo config file
 static std::string g_input_filename;    // Input file name
 static std::string g_output_dataset;    // Output HEPnOS dataset
 static bool        g_use_async;         // Whether to use an AsyncEngine
@@ -68,7 +70,9 @@ int main(int argc, char** argv) {
     // Set logging level
     spdlog::set_level(g_logging_level);
 
+    spdlog::debug("protocol: {}", g_protocol);
     spdlog::debug("connection file: {}", g_connection_file);
+    spdlog::debug("margo config file: {}", g_margo_file);
     spdlog::debug("input file: {}", g_input_filename);
     spdlog::debug("output dataset: {}", g_output_dataset);
     spdlog::debug("use async: {}", g_use_async);
@@ -94,7 +98,7 @@ int main(int argc, char** argv) {
     hepnos::DataStore datastore;
     try {
         spdlog::info("Connecting to HEPnOS using file {}", g_connection_file);
-        datastore = hepnos::DataStore::connect(g_connection_file, g_use_async);
+        datastore = hepnos::DataStore::connect(g_protocol, g_connection_file, g_margo_file);
     } catch(const hepnos::Exception& ex) {
         spdlog::critical("Could not connect to HEPnOS service: {}", ex.what());
         MPI_Abort(MPI_COMM_WORLD, 1);
@@ -163,7 +167,9 @@ static void parse_arguments(int argc, char** argv) {
     try {
 
         TCLAP::CmdLine cmd("Loads HDF5 files into HEPnOS", ' ', "0.1");
-        TCLAP::ValueArg<std::string> clientFile("c", "connection", "YAML connection file for HEPnOS", true, "", "string");
+        TCLAP::ValueArg<std::string> protocol("p","protocol", "Mercury protocol", true, "", "string");
+        TCLAP::ValueArg<std::string> clientFile("c", "connection", "JSON connection file for HEPnOS", true, "", "string");
+        TCLAP::ValueArg<std::string> margoFile("m", "margo-config", "JSON configuration for margo", false, "", "string");
         TCLAP::ValueArg<std::string> fileName("i", "input", "Input file containing list of HDF5 files", true, "", "string");
         TCLAP::ValueArg<std::string> dataSetName("o", "output", "DataSet in which to store the data", true, "", "string");
         TCLAP::SwitchArg useAsync("a", "async", "Use asynchronous operations", false);
@@ -176,7 +182,9 @@ static void parse_arguments(int argc, char** argv) {
         TCLAP::MultiArg<std::string> productNames("n", "product-names",
             "Name of the products to load", false, "string");
 
+        cmd.add(protocol);
         cmd.add(clientFile);
+        cmd.add(margoFile);
         cmd.add(fileName);
         cmd.add(dataSetName);
         cmd.add(useAsync);
@@ -188,7 +196,9 @@ static void parse_arguments(int argc, char** argv) {
         cmd.add(productNames);
         cmd.parse(argc, argv);
 
+        g_protocol          = protocol.getValue();
         g_connection_file   = clientFile.getValue();
+        g_margo_file        = margoFile.getValue();
         g_input_filename    = fileName.getValue();
         g_output_dataset    = dataSetName.getValue();
         g_use_async         = useAsync.getValue();
