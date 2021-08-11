@@ -51,7 +51,7 @@ static void process_table(hepnos::SubRun& sr,
        hid_t hdf_file, hepnos::WriteBatch& wb);
 
 static void parse_arguments(int argc, char** argv);
-static void read_input_file(WorkQueue& work_queue);
+static int read_input_file(WorkQueue& work_queue);
 static void create_output_dataset(const hepnos::DataStore& datastore);
 static void process_hdf5_file(hepnos::DataSet& dataset, const std::string& filename, hepnos::WriteBatch& wb);
 static void prepare_product_loading_functions();
@@ -63,6 +63,8 @@ int main(int argc, char** argv) {
     MPI_Comm_size(MPI_COMM_WORLD, &g_size);
 
     int num_files_processed = 0;
+    int total_files_processed = 0;
+    int total_files = 0;
     std::stringstream str_format;
     str_format << "[" << std::setw(6) << std::setfill('0') << g_rank << "|" << g_size
                << "] [%H:%M:%S.%F] [%n] [%^%l%$] %v";
@@ -125,7 +127,7 @@ int main(int argc, char** argv) {
         // Rank 0 read the list of files
         if(g_rank == 0) {
             spdlog::info("Reading input file list");
-            read_input_file(work_queue);
+            total_files = read_input_file(work_queue);
             spdlog::info("Done reading input file list");
         }
         // Everyone marks the work queue as read-only from now on
@@ -166,12 +168,13 @@ int main(int argc, char** argv) {
         }
     }
     double end_time = MPI_Wtime();
-    int total_files_processed = 0;
     MPI_Reduce(&num_files_processed, &total_files_processed, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
     spdlog::info("All done, exiting!");
     spdlog::info("Created {} events and {} products", g_total_events, g_total_products);
-    if(g_rank == 0)
-        std::cout << "TIME: " << (start_time-end_time) << " FILES: " << total_files_processed << std::endl;
+    if(g_rank == 0) {
+        std::cout << "TIME: " << (end_time-start_time) << " FILES: " << total_files_processed << "/" << total_files << std::endl;
+        std::cout << "ESTIMATED TOTAL TIME: " << (end_time-start_time)*total_files/(double)total_files_processed << std::endl;
+    }
     MPI_Finalize();
 }
 
@@ -233,16 +236,19 @@ static void parse_arguments(int argc, char** argv) {
     }
 }
 
-static void read_input_file(WorkQueue& work_queue) {
+static int read_input_file(WorkQueue& work_queue) {
     std::ifstream infile(g_input_filename);
     if(!infile.good()) {
         spdlog::critical("Coulf not open file {}", g_input_filename);
         MPI_Abort(MPI_COMM_WORLD, 1);
     }
+    int num_files = 0;
     std::string line;
     while(std::getline(infile, line)) {
         work_queue.push(line);
+        num_files += 1;
     }
+    return num_files;
 }
 
 static void create_output_dataset(const hepnos::DataStore& datastore) {
