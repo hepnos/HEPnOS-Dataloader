@@ -36,6 +36,7 @@ static std::string g_product_label;     // Product label
 static bool        g_simulate;          // Simulate output
 static spdlog::level::level_enum g_logging_level; // Logging level
 static std::vector<std::string>  g_product_names; // Product names
+static int         g_timeout;           // Timeout
 
 static uint64_t g_total_events = 0;
 static uint64_t g_total_products = 0;
@@ -61,6 +62,7 @@ int main(int argc, char** argv) {
     MPI_Comm_rank(MPI_COMM_WORLD, &g_rank);
     MPI_Comm_size(MPI_COMM_WORLD, &g_size);
 
+    int num_files_processed = 0;
     std::stringstream str_format;
     str_format << "[" << std::setw(6) << std::setfill('0') << g_rank << "|" << g_size
                << "] [%H:%M:%S.%F] [%n] [%^%l%$] %v";
@@ -114,6 +116,7 @@ int main(int argc, char** argv) {
     hepnos::DataSet dataset;
     if(not g_simulate) dataset = datastore.root()[g_output_dataset];
     // We need a scope to prevent MPI_Finalize to be called before the destructor of WorkQueue
+    double start_time = MPI_Wtime();
     {
         // Initialize the work queue
         spdlog::info("Initializing work queue");
@@ -145,8 +148,12 @@ int main(int argc, char** argv) {
         // Process HDF5 files
         try {
             while(true) {
+                double t = MPI_Wtime();
+                if(g_timeout > 0 && (t - start_time) > g_timeout)
+                    work_queue.clear();
                 std::string filename = work_queue.pull();
                 process_hdf5_file(dataset, filename, write_batch);
+                num_files_processed += 1;
             }
         } catch(WorkQueue::EmptyQueueException& ex) {}
         spdlog::info("Work completed!");
@@ -158,8 +165,13 @@ int main(int argc, char** argv) {
             spdlog::info("WriteBatch statistics: {}", stats);
         }
     }
+    double end_time = MPI_Wtime();
+    int total_files_processed = 0;
+    MPI_Reduce(&num_files_processed, &total_files_processed, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
     spdlog::info("All done, exiting!");
     spdlog::info("Created {} events and {} products", g_total_events, g_total_products);
+    if(g_rank == 0)
+        std::cout << "TIME: " << (start_time-end_time) << " FILES: " << total_files_processed << std::endl;
     MPI_Finalize();
 }
 
@@ -181,6 +193,7 @@ static void parse_arguments(int argc, char** argv) {
         TCLAP::SwitchArg simulate("s", "simulate", "Only read HDF5 files, simulate writes", false);
         TCLAP::MultiArg<std::string> productNames("n", "product-names",
             "Name of the products to load", false, "string");
+        TCLAP::ValueArg<int> timeout("", "timeout", "Run for only the specified time (sec)", false, -1, "int");
 
         cmd.add(protocol);
         cmd.add(clientFile);
@@ -194,6 +207,7 @@ static void parse_arguments(int argc, char** argv) {
         cmd.add(productLabel);
         cmd.add(simulate);
         cmd.add(productNames);
+        cmd.add(timeout);
         cmd.parse(argc, argv);
 
         g_protocol          = protocol.getValue();
@@ -209,6 +223,7 @@ static void parse_arguments(int argc, char** argv) {
         g_product_label     = productLabel.getValue();
         g_simulate          = simulate.getValue();
         g_product_names     = productNames.getValue();
+        g_timeout           = timeout.getValue();
 
     } catch(TCLAP::ArgException &e) {
         if(g_rank == 0) {
