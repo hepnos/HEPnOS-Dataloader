@@ -15,7 +15,7 @@ class WorkQueue {
     public:
 
     class EmptyQueueException : public std::exception {
-        
+
         public:
 
         const char* what() const noexcept {
@@ -109,6 +109,17 @@ class WorkQueue {
             MPI_Recv(const_cast<char*>(result.data()), work_size, MPI_CHAR, 0, 0,
                      m_comm, MPI_STATUS_IGNORE);
             return result;
+        }
+    }
+
+    void clear() {
+        if(m_rank == 0) {
+            {
+                std::unique_lock<tl::mutex> lock(m_queue_mtx);
+                decltype(m_queue) empty;
+                std::swap(m_queue, empty);
+            }
+            m_queue_cv.notify_all();
         }
     }
 

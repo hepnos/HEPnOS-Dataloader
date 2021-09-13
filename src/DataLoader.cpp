@@ -24,6 +24,8 @@
 static int         g_rank;              // Rank of this process
 static int         g_size;              // Size of MPI_COMM_WORKD
 static std::string g_connection_file;   // Name of HEPnOS YAML client file
+static std::string g_protocol;          // Protocol to use for Mercury
+static std::string g_margo_file;        // Margo config file
 static std::string g_input_filename;    // Input file name
 static std::string g_output_dataset;    // Output HEPnOS dataset
 static bool        g_use_async;         // Whether to use an AsyncEngine
@@ -34,6 +36,7 @@ static std::string g_product_label;     // Product label
 static bool        g_simulate;          // Simulate output
 static spdlog::level::level_enum g_logging_level; // Logging level
 static std::vector<std::string>  g_product_names; // Product names
+static int         g_timeout;           // Timeout
 
 static uint64_t g_total_events = 0;
 static uint64_t g_total_products = 0;
@@ -48,7 +51,7 @@ static void process_table(hepnos::SubRun& sr,
        hid_t hdf_file, hepnos::WriteBatch& wb);
 
 static void parse_arguments(int argc, char** argv);
-static void read_input_file(WorkQueue& work_queue);
+static int read_input_file(WorkQueue& work_queue);
 static void create_output_dataset(const hepnos::DataStore& datastore);
 static void process_hdf5_file(hepnos::DataSet& dataset, const std::string& filename, hepnos::WriteBatch& wb);
 static void prepare_product_loading_functions();
@@ -59,6 +62,9 @@ int main(int argc, char** argv) {
     MPI_Comm_rank(MPI_COMM_WORLD, &g_rank);
     MPI_Comm_size(MPI_COMM_WORLD, &g_size);
 
+    int num_files_processed = 0;
+    int total_files_processed = 0;
+    int total_files = 0;
     std::stringstream str_format;
     str_format << "[" << std::setw(6) << std::setfill('0') << g_rank << "|" << g_size
                << "] [%H:%M:%S.%F] [%n] [%^%l%$] %v";
@@ -68,7 +74,9 @@ int main(int argc, char** argv) {
     // Set logging level
     spdlog::set_level(g_logging_level);
 
+    spdlog::debug("protocol: {}", g_protocol);
     spdlog::debug("connection file: {}", g_connection_file);
+    spdlog::debug("margo config file: {}", g_margo_file);
     spdlog::debug("input file: {}", g_input_filename);
     spdlog::debug("output dataset: {}", g_output_dataset);
     spdlog::debug("use async: {}", g_use_async);
@@ -94,7 +102,7 @@ int main(int argc, char** argv) {
     hepnos::DataStore datastore;
     try {
         spdlog::info("Connecting to HEPnOS using file {}", g_connection_file);
-        datastore = hepnos::DataStore::connect(g_connection_file, g_use_async);
+        datastore = hepnos::DataStore::connect(g_protocol, g_connection_file, g_margo_file);
     } catch(const hepnos::Exception& ex) {
         spdlog::critical("Could not connect to HEPnOS service: {}", ex.what());
         MPI_Abort(MPI_COMM_WORLD, 1);
@@ -110,6 +118,7 @@ int main(int argc, char** argv) {
     hepnos::DataSet dataset;
     if(not g_simulate) dataset = datastore.root()[g_output_dataset];
     // We need a scope to prevent MPI_Finalize to be called before the destructor of WorkQueue
+    double start_time = MPI_Wtime();
     {
         // Initialize the work queue
         spdlog::info("Initializing work queue");
@@ -118,7 +127,7 @@ int main(int argc, char** argv) {
         // Rank 0 read the list of files
         if(g_rank == 0) {
             spdlog::info("Reading input file list");
-            read_input_file(work_queue);
+            total_files = read_input_file(work_queue);
             spdlog::info("Done reading input file list");
         }
         // Everyone marks the work queue as read-only from now on
@@ -141,8 +150,12 @@ int main(int argc, char** argv) {
         // Process HDF5 files
         try {
             while(true) {
+                double t = MPI_Wtime();
+                if(g_timeout > 0 && (t - start_time) > g_timeout)
+                    work_queue.clear();
                 std::string filename = work_queue.pull();
                 process_hdf5_file(dataset, filename, write_batch);
+                num_files_processed += 1;
             }
         } catch(WorkQueue::EmptyQueueException& ex) {}
         spdlog::info("Work completed!");
@@ -154,8 +167,14 @@ int main(int argc, char** argv) {
             spdlog::info("WriteBatch statistics: {}", stats);
         }
     }
+    double end_time = MPI_Wtime();
+    MPI_Reduce(&num_files_processed, &total_files_processed, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
     spdlog::info("All done, exiting!");
     spdlog::info("Created {} events and {} products", g_total_events, g_total_products);
+    if(g_rank == 0) {
+        std::cout << "TIME: " << (end_time-start_time) << " FILES: " << total_files_processed << "/" << total_files << std::endl;
+        std::cout << "ESTIMATED TOTAL TIME: " << (end_time-start_time)*total_files/(double)total_files_processed << std::endl;
+    }
     MPI_Finalize();
 }
 
@@ -163,7 +182,9 @@ static void parse_arguments(int argc, char** argv) {
     try {
 
         TCLAP::CmdLine cmd("Loads HDF5 files into HEPnOS", ' ', "0.1");
-        TCLAP::ValueArg<std::string> clientFile("c", "connection", "YAML connection file for HEPnOS", true, "", "string");
+        TCLAP::ValueArg<std::string> protocol("p","protocol", "Mercury protocol", true, "", "string");
+        TCLAP::ValueArg<std::string> clientFile("c", "connection", "JSON connection file for HEPnOS", true, "", "string");
+        TCLAP::ValueArg<std::string> margoFile("m", "margo-config", "JSON configuration for margo", false, "", "string");
         TCLAP::ValueArg<std::string> fileName("i", "input", "Input file containing list of HDF5 files", true, "", "string");
         TCLAP::ValueArg<std::string> dataSetName("o", "output", "DataSet in which to store the data", true, "", "string");
         TCLAP::SwitchArg useAsync("a", "async", "Use asynchronous operations", false);
@@ -175,8 +196,11 @@ static void parse_arguments(int argc, char** argv) {
         TCLAP::SwitchArg simulate("s", "simulate", "Only read HDF5 files, simulate writes", false);
         TCLAP::MultiArg<std::string> productNames("n", "product-names",
             "Name of the products to load", false, "string");
+        TCLAP::ValueArg<int> timeout("", "timeout", "Run for only the specified time (sec)", false, -1, "int");
 
+        cmd.add(protocol);
         cmd.add(clientFile);
+        cmd.add(margoFile);
         cmd.add(fileName);
         cmd.add(dataSetName);
         cmd.add(useAsync);
@@ -186,9 +210,12 @@ static void parse_arguments(int argc, char** argv) {
         cmd.add(productLabel);
         cmd.add(simulate);
         cmd.add(productNames);
+        cmd.add(timeout);
         cmd.parse(argc, argv);
 
+        g_protocol          = protocol.getValue();
         g_connection_file   = clientFile.getValue();
+        g_margo_file        = margoFile.getValue();
         g_input_filename    = fileName.getValue();
         g_output_dataset    = dataSetName.getValue();
         g_use_async         = useAsync.getValue();
@@ -199,6 +226,7 @@ static void parse_arguments(int argc, char** argv) {
         g_product_label     = productLabel.getValue();
         g_simulate          = simulate.getValue();
         g_product_names     = productNames.getValue();
+        g_timeout           = timeout.getValue();
 
     } catch(TCLAP::ArgException &e) {
         if(g_rank == 0) {
@@ -208,16 +236,19 @@ static void parse_arguments(int argc, char** argv) {
     }
 }
 
-static void read_input_file(WorkQueue& work_queue) {
+static int read_input_file(WorkQueue& work_queue) {
     std::ifstream infile(g_input_filename);
     if(!infile.good()) {
         spdlog::critical("Coulf not open file {}", g_input_filename);
         MPI_Abort(MPI_COMM_WORLD, 1);
     }
+    int num_files = 0;
     std::string line;
     while(std::getline(infile, line)) {
         work_queue.push(line);
+        num_files += 1;
     }
+    return num_files;
 }
 
 static void create_output_dataset(const hepnos::DataStore& datastore) {
