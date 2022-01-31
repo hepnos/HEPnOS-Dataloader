@@ -181,7 +181,7 @@ int main(int argc, char** argv) {
 static void parse_arguments(int argc, char** argv) {
     try {
 
-        TCLAP::CmdLine cmd("Loads HDF5 files into HEPnOS", ' ', "0.1");
+        TCLAP::CmdLine cmd("Loads HDF5 files into HEPnOS", ' ', "0.5");
         TCLAP::ValueArg<std::string> protocol("p","protocol", "Mercury protocol", true, "", "string");
         TCLAP::ValueArg<std::string> clientFile("c", "connection", "JSON connection file for HEPnOS", true, "", "string");
         TCLAP::ValueArg<std::string> margoFile("m", "margo-config", "JSON configuration for margo", false, "", "string");
