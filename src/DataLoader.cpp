@@ -290,6 +290,8 @@ static void process_table(hepnos::SubRun& sr,
     auto checkeve = [](uint64_t i, uint64_t j) { return (i != j); };
     auto batch_end = std::adjacent_find(batch_begin, events.cend(), checkeve);
 
+    size_t subrun_events = 0;
+
     while (batch_begin != events.cend()) {
         if (batch_end != events.cend())
             batch_end = batch_end + 1;
@@ -299,6 +301,7 @@ static void process_table(hepnos::SubRun& sr,
             if(it == createdEvents.end()) {
                 ev = sr.createEvent(wb, *batch_begin);
                 g_total_events += 1;
+                subrun_events += 1;
                 createdEvents[*batch_begin] = ev;
             } else {
                 ev = it->second;
@@ -313,6 +316,7 @@ static void process_table(hepnos::SubRun& sr,
         batch_end = std::adjacent_find(batch_begin, events.cend(), checkeve);
     }
     spdlog::debug("Done processing table {}", hepnos::demangle<T>());
+    spdlog::debug("Created {} new events in subrun {}, run {}", subrun_events, sr.number(), sr.run().number());
 }
 
 static uint64_t parse_num_from_filename(const std::string& filename, const std::regex& r) {
@@ -355,6 +359,8 @@ static void process_hdf5_file(hepnos::DataSet& dataset,
     std::unordered_map<hepnos::EventNumber,hepnos::Event> createdEvents;
 
     spdlog::debug("Done creating/accessing run/subrun");
+    spdlog::debug("Created {} events in run {} subrun {}",
+                  createdEvents.size(), runNumber, subrunNumber);
 
     for(auto& product_name : g_product_names) {
         g_load_product_fn[product_name](sr, createdEvents, hdf_file, writeBatch);
