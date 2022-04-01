@@ -37,6 +37,7 @@ static bool        g_simulate;          // Simulate output
 static spdlog::level::level_enum g_logging_level; // Logging level
 static std::vector<std::string>  g_product_names; // Product names
 static int         g_timeout;           // Timeout
+static hepnos::RunNumber g_run_offset;  // Offset to add to all event numbers when storing
 
 static uint64_t g_total_events = 0;
 static uint64_t g_total_products = 0;
@@ -55,6 +56,7 @@ static int read_input_file(WorkQueue& work_queue);
 static void create_output_dataset(const hepnos::DataStore& datastore);
 static void process_hdf5_file(hepnos::DataSet& dataset, const std::string& filename, hepnos::WriteBatch& wb);
 static void prepare_product_loading_functions();
+
 
 int main(int argc, char** argv) {
 
@@ -84,6 +86,7 @@ int main(int argc, char** argv) {
     spdlog::debug("use batching: {}", g_use_batching);
     spdlog::debug("batch size: {}", g_batch_size);
     spdlog::debug("product label: {}", g_product_label);
+    spdlog::debug("run offset: {}", g_run_offset);
 
     prepare_product_loading_functions();
 
@@ -197,6 +200,7 @@ static void parse_arguments(int argc, char** argv) {
         TCLAP::MultiArg<std::string> productNames("n", "product-names",
             "Name of the products to load", false, "string");
         TCLAP::ValueArg<int> timeout("", "timeout", "Run for only the specified time (sec)", false, -1, "int");
+        TCLAP::ValueArg<hepnos::RunNumber> runOffset("", "run-offset", "Add this offset to run numbers", false, 0, "int");
 
         cmd.add(protocol);
         cmd.add(clientFile);
@@ -211,6 +215,7 @@ static void parse_arguments(int argc, char** argv) {
         cmd.add(simulate);
         cmd.add(productNames);
         cmd.add(timeout);
+        cmd.add(runOffset);
         cmd.parse(argc, argv);
 
         g_protocol          = protocol.getValue();
@@ -227,6 +232,7 @@ static void parse_arguments(int argc, char** argv) {
         g_simulate          = simulate.getValue();
         g_product_names     = productNames.getValue();
         g_timeout           = timeout.getValue();
+        g_run_offset        = runOffset.getValue();
 
     } catch(TCLAP::ArgException &e) {
         if(g_rank == 0) {
@@ -277,13 +283,12 @@ static void process_table(hepnos::SubRun& sr,
        hid_t hdf_file, hepnos::WriteBatch& wb)
 {
     spdlog::debug("Processing table {}", hepnos::demangle<T>());
-    std::vector<unsigned> runs;
     std::vector<unsigned> events;
     std::vector<unsigned> subruns;
     std::vector<T> table;
 
     spdlog::debug("Reading HDF5 file...");
-    std::tie(runs, subruns, events, table) = T::from_hdf5(hdf_file);
+    std::tie(std::ignore, subruns, events, table) = T::from_hdf5(hdf_file);
     spdlog::debug("Done HDF5 reading file");
 
     auto batch_begin = events.cbegin();
@@ -345,6 +350,7 @@ static void process_hdf5_file(hepnos::DataSet& dataset,
     hid_t hdf_file = H5Fopen(filename.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT);
 
     hepnos::RunNumber runNumber = parse_num_from_filename(filename, std::regex("(_r000)([0-9]{5})"));
+    runNumber += g_run_offset;
     hepnos::SubRunNumber subrunNumber = parse_num_from_filename(filename, std::regex("(_s)([0-9]{2})"));
     spdlog::debug("Creating run {} and subrun {}", runNumber, subrunNumber);
 
