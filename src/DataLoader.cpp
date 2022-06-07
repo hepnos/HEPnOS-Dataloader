@@ -135,6 +135,7 @@ int main(int argc, char** argv) {
         }
         // Everyone marks the work queue as read-only from now on
         work_queue.readonly();
+        MPI_Barrier(MPI_COMM_WORLD);
         // Initialize write batch
         hepnos::WriteBatch write_batch;
         hepnos::AsyncEngine async;
