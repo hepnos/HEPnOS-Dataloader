@@ -39,9 +39,10 @@ class WorkQueue {
         MPI_Comm_size(comm, &size);
         m_num_remote_readers = size-1;
         m_num_remote_writers = size-1;
-        if(m_rank == 0) {
-            _spawn_listener_thread();
-        }
+    }
+
+    void start_listening() {
+        _spawn_listener_thread();
     }
 
     ~WorkQueue() {
